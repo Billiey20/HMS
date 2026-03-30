@@ -1,60 +1,74 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions } from '../context/PermissionsContext';
 import {
   LocalHospital, Dashboard, PersonAdd, Assignment,
   Hotel, MedicalServices, Science, LocalPharmacy,
   Inventory, ReceiptLong, Group, BarChart,
-  Settings, Logout, Menu, Close, ExpandMore,
-  ChevronRight, NotificationsNone, AccountCircle
+  Settings, Logout, Menu, Close,
+  NotificationsNone, AccountCircle, AdminPanelSettings,
+  PriceCheck, MonitorHeart
 } from '@mui/icons-material';
 
-// ── Navigation structure ─────────────────────────────────────────────────────
+// ── Navigation structure (each item has a `section` key for RBAC) ─────────────
 const NAV = [
   {
-    section: 'CORE',
+    group: 'CORE',
     items: [
-      { to: '/', label: 'Dashboard', icon: Dashboard, exact: true },
-    ]
+      { to: '/',          label: 'Dashboard',     icon: Dashboard,           section: 'dashboard', exact: true },
+    ],
   },
   {
-    section: 'OPD',
+    group: 'ADMIN',
     items: [
-      { to: '/patients', label: 'Patient Center', icon: PersonAdd },
-      { to: '/opd/triage', label: 'Triage / Vitals', icon: MedicalServices },
-      { to: '/opd/queue', label: 'Doctor Queue', icon: Assignment },
-      { to: '/opd/consultation', label: 'Consultation', icon: Assignment },
-    ]
+      { to: '/admin',         label: 'Admin Overview', icon: AdminPanelSettings,  section: 'admin' },
+      { to: '/admin/prices',  label: 'Price List',     icon: PriceCheck,          section: 'prices' },
+    ],
   },
   {
-    section: 'INPATIENT',
+    group: 'RECEPTION',
     items: [
-      { to: '/ipd/wards', label: 'Ward & Bed Map', icon: Hotel },
-      { to: '/ipd/admissions', label: 'Admissions (ADT)', icon: Hotel },
-      { to: '/ipd/nursing', label: 'Nursing Rounds', icon: MedicalServices },
-    ]
+      { to: '/patients',  label: 'Patient Center', icon: PersonAdd,    section: 'patients' },
+    ],
   },
   {
-    section: 'CLINICAL SUPPORT',
+    group: 'OPD',
     items: [
-      { to: '/lab', label: 'Laboratory', icon: Science },
-      { to: '/pharmacy', label: 'Pharmacy', icon: LocalPharmacy },
-    ]
+      { to: '/opd/triage',       label: 'Triage Queue',    icon: MonitorHeart,    section: 'triage' },
+      { to: '/opd/queue',        label: 'Doctor Queue',    icon: Assignment,      section: 'opd' },
+      { to: '/opd/consultation', label: 'Consultation',    icon: Assignment,      section: 'opd' },
+    ],
   },
   {
-    section: 'MANAGEMENT',
+    group: 'INPATIENT',
     items: [
-      { to: '/inventory', label: 'Inventory', icon: Inventory },
-      { to: '/billing', label: 'Billing', icon: ReceiptLong },
-      { to: '/hr', label: 'Staff / HR', icon: Group },
-      { to: '/reports', label: 'Reports', icon: BarChart },
-    ]
+      { to: '/ipd/wards',      label: 'Ward & Bed Map',    icon: Hotel,           section: 'ward_map' },
+      { to: '/ipd/admissions', label: 'Admissions (ADT)',  icon: Hotel,           section: 'ipd' },
+      { to: '/ipd/nursing',    label: 'Nursing Rounds',    icon: MedicalServices, section: 'ipd' },
+    ],
   },
   {
-    section: 'SYSTEM',
+    group: 'CLINICAL SUPPORT',
     items: [
-      { to: '/settings', label: 'Settings', icon: Settings },
-    ]
+      { to: '/lab',      label: 'Laboratory', icon: Science,        section: 'lab'      },
+      { to: '/pharmacy', label: 'Pharmacy',   icon: LocalPharmacy,  section: 'pharmacy' },
+    ],
+  },
+  {
+    group: 'MANAGEMENT',
+    items: [
+      { to: '/inventory', label: 'Inventory', icon: Inventory,    section: 'inventory' },
+      { to: '/billing',   label: 'Billing',   icon: ReceiptLong,  section: 'billing'   },
+      { to: '/hr',        label: 'Staff / HR', icon: Group,       section: 'hr'        },
+      { to: '/reports',   label: 'Reports',   icon: BarChart,     section: 'reports'   },
+    ],
+  },
+  {
+    group: 'SYSTEM',
+    items: [
+      { to: '/settings', label: 'Settings', icon: Settings, section: 'settings' },
+    ],
   },
 ];
 
@@ -64,7 +78,7 @@ function NavItem({ to, label, icon: Icon, exact = false }) {
       to={to}
       end={exact}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group
+        `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
         ${isActive
           ? 'bg-primary-600 text-white shadow-sm'
           : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`
@@ -78,27 +92,33 @@ function NavItem({ to, label, icon: Icon, exact = false }) {
 
 export default function Layout() {
   const { user, profile, role, signOut } = useAuth();
+  const { hasAccess } = usePermissions();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
+  const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
-  const displayName = profile
-    ? `${profile.first_name} ${profile.last_name}`
-    : user?.email;
+  const displayName = profile ? `${profile.first_name} ${profile.last_name}` : user?.email;
 
   const roleBadge = {
-    admin:     { label: 'Administrator', cls: 'badge-blue' },
-    doctor:    { label: 'Clinician',     cls: 'badge-green' },
-    nurse:     { label: 'Nurse',         cls: 'badge-green' },
-    reception: { label: 'Reception',     cls: 'badge-slate' },
-    pharmacy:  { label: 'Pharmacist',    cls: 'badge-amber' },
-    lab_staff: { label: 'Lab Tech',      cls: 'badge-blue' },
-    billing:   { label: 'Billing',       cls: 'badge-amber' },
-  }[role] || { label: role || 'Staff', cls: 'badge-slate' };
+    admin:     { label: 'Administrator',  cls: 'bg-blue-100 text-blue-700'    },
+    doctor:    { label: 'Clinician',      cls: 'bg-green-100 text-green-700'  },
+    nurse:     { label: 'Nurse',          cls: 'bg-green-100 text-green-700'  },
+    reception: { label: 'Reception',      cls: 'bg-slate-100 text-slate-700'  },
+    pharmacy:  { label: 'Pharmacist',     cls: 'bg-amber-100 text-amber-700'  },
+    lab_staff: { label: 'Lab Technician', cls: 'bg-blue-100 text-blue-700'    },
+    billing:   { label: 'Billing',        cls: 'bg-amber-100 text-amber-700'  },
+    hr:        { label: 'HR',             cls: 'bg-violet-100 text-violet-700' },
+    triage:    { label: 'Triage',         cls: 'bg-emerald-100 text-emerald-700' },
+  }[role] || { label: role || 'Staff', cls: 'bg-slate-100 text-slate-700' };
+
+  // Filter nav: only show groups that have at least one accessible item
+  const visibleNav = NAV
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => hasAccess(item.section)),
+    }))
+    .filter(group => group.items.length > 0);
 
   const Sidebar = () => (
     <aside className="w-64 shrink-0 h-full flex flex-col bg-white border-r border-slate-200 overflow-y-auto">
@@ -113,11 +133,18 @@ export default function Layout() {
         </div>
       </div>
 
+      {/* Role badge */}
+      <div className="px-5 py-2 border-b border-slate-100">
+        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${roleBadge.cls}`}>
+          {roleBadge.label}
+        </span>
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-        {NAV.map(({ section, items }) => (
-          <div key={section}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-1.5">{section}</p>
+      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+        {visibleNav.map(({ group, items }) => (
+          <div key={group}>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-1.5">{group}</p>
             <div className="space-y-0.5">
               {items.map(item => <NavItem key={item.to} {...item} />)}
             </div>
@@ -133,7 +160,7 @@ export default function Layout() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-slate-800 truncate">{displayName}</p>
-            <span className={`text-[10px] ${roleBadge.cls} px-1.5 py-0.5 rounded-full`}>{roleBadge.label}</span>
+            <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
           </div>
           <button onClick={handleSignOut} title="Sign out"
             className="text-slate-400 hover:text-red-500 transition-colors">
@@ -144,22 +171,23 @@ export default function Layout() {
     </aside>
   );
 
+  const showSidebar = ['admin', 'hr', 'doctor', 'nurse', 'triage'].includes(role);
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Desktop sidebar */}
-      <div className="hidden md:flex h-full flex-col">
-        <Sidebar />
-      </div>
+      {showSidebar && (
+        <div className="hidden md:flex h-full flex-col">
+          <Sidebar />
+        </div>
+      )}
 
       {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
+      {showSidebar && sidebarOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <div className="relative z-10 h-full">
-            <Sidebar />
-          </div>
-          <button onClick={() => setSidebarOpen(false)}
-            className="absolute top-4 left-[17rem] z-20 text-white">
+          <div className="relative z-10 h-full"><Sidebar /></div>
+          <button onClick={() => setSidebarOpen(false)} className="absolute top-4 left-[17rem] z-20 text-white">
             <Close />
           </button>
         </div>
@@ -167,22 +195,45 @@ export default function Layout() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Nav */}
+        {/* Top nav */}
         <header className="flex items-center justify-between px-4 md:px-6 h-14 bg-white border-b border-slate-200 shrink-0">
-          <button className="md:hidden text-slate-500 hover:text-slate-800" onClick={() => setSidebarOpen(true)}>
-            <Menu />
-          </button>
-          <div className="flex-1" />
           <div className="flex items-center gap-3">
-            {/* Notification bell */}
+            {showSidebar && (
+              <button className="md:hidden text-slate-500 hover:text-slate-800" onClick={() => setSidebarOpen(true)}>
+                <Menu />
+              </button>
+            )}
+            {!showSidebar && (
+               <div className="flex items-center gap-2">
+                 <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                   <LocalHospital className="text-white" sx={{ fontSize: 18 }} />
+                 </div>
+                 <span className="font-bold text-slate-800 tracking-wide">Biopassion HMS</span>
+                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 ${roleBadge.cls}`}>
+                   {roleBadge.label}
+                 </span>
+               </div>
+            )}
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center gap-4">
             <button className="relative text-slate-500 hover:text-slate-800 transition-colors">
               <NotificationsNone sx={{ fontSize: 22 }} />
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
             </button>
-            {/* Today's date */}
-            <span className="hidden sm:block text-xs text-slate-500 font-medium">
-              {new Date().toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' })}
+            <span className="hidden sm:block text-xs text-slate-500 font-medium border-r border-slate-200 pr-4">
+              {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
             </span>
+            {!showSidebar && (
+              <div className="flex items-center gap-3 pl-1">
+                <div className="hidden md:block text-right">
+                  <p className="text-xs font-bold text-slate-800">{displayName}</p>
+                </div>
+                <button onClick={handleSignOut} title="Sign out" className="text-slate-400 hover:text-red-500 transition-colors">
+                  <Logout sx={{ fontSize: 18 }} />
+                </button>
+              </div>
+            )}
           </div>
         </header>
 

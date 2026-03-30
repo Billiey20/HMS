@@ -1,35 +1,38 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Science, Search, Save, Print, Refresh, Warning
+  Science, Refresh, Print, CheckCircle,
+  Warning, HourglassEmpty, Search, Assignment,
+  Send, Cancel, FactCheck, MedicalServices
 } from '@mui/icons-material';
 import { labService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+// ── Test result templates ─────────────────────────────────────────────────────
 const TEST_TEMPLATES = {
   'Full Haemogram / CBC': [
-    { name: 'WBC',          unit: '×10³/μL', refLow: 4.0,  refHigh: 11.0, type: 'number' },
-    { name: 'RBC',          unit: '×10⁶/μL', refLow: 4.2,  refHigh: 5.4,  type: 'number' },
-    { name: 'Haemoglobin',  unit: 'g/dL',    refLow: 11.5, refHigh: 17.5, type: 'number' },
-    { name: 'HCT',          unit: '%',        refLow: 37,   refHigh: 52,   type: 'number' },
-    { name: 'MCV',          unit: 'fL',       refLow: 80,   refHigh: 100,  type: 'number' },
-    { name: 'MCH',          unit: 'pg',       refLow: 27,   refHigh: 33,   type: 'number' },
-    { name: 'MCHC',         unit: 'g/dL',     refLow: 32,   refHigh: 36,   type: 'number' },
-    { name: 'Platelets',    unit: '×10³/μL',  refLow: 150,  refHigh: 400,  type: 'number' },
-    { name: 'Neutrophils',  unit: '%',        refLow: 45,   refHigh: 75,   type: 'number' },
-    { name: 'Lymphocytes',  unit: '%',        refLow: 20,   refHigh: 40,   type: 'number' },
+    { name: 'WBC',         unit: '×10³/μL', refLow: 4.0,  refHigh: 11.0, type: 'number' },
+    { name: 'RBC',         unit: '×10⁶/μL', refLow: 4.2,  refHigh: 5.4,  type: 'number' },
+    { name: 'Haemoglobin', unit: 'g/dL',    refLow: 11.5, refHigh: 17.5, type: 'number' },
+    { name: 'HCT',         unit: '%',        refLow: 37,   refHigh: 52,   type: 'number' },
+    { name: 'MCV',         unit: 'fL',       refLow: 80,   refHigh: 100,  type: 'number' },
+    { name: 'MCH',         unit: 'pg',       refLow: 27,   refHigh: 33,   type: 'number' },
+    { name: 'MCHC',        unit: 'g/dL',     refLow: 32,   refHigh: 36,   type: 'number' },
+    { name: 'Platelets',   unit: '×10³/μL',  refLow: 150,  refHigh: 400,  type: 'number' },
+    { name: 'Neutrophils', unit: '%',        refLow: 45,   refHigh: 75,   type: 'number' },
+    { name: 'Lymphocytes', unit: '%',        refLow: 20,   refHigh: 40,   type: 'number' },
   ],
   'Urinalysis (UA)': [
-    { name: 'Colour',       unit: '',  refText: 'Yellow',  type: 'select', options: ['Yellow','Pale yellow','Dark yellow','Amber','Orange','Red','Brown','Clear'] },
-    { name: 'Appearance',   unit: '',  refText: 'Clear',   type: 'select', options: ['Clear','Slightly turbid','Turbid','Cloudy'] },
-    { name: 'pH',           unit: '',  refLow: 4.5, refHigh: 8.0, type: 'number' },
-    { name: 'Specific Gravity',unit:'',refLow:1.005,refHigh:1.030,type:'number'},
-    { name: 'Protein',      unit: '',  refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Glucose',      unit: '',  refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Nitrites',     unit: '',  refText: 'Negative', type: 'select', options: ['Negative','Positive'] },
-    { name: 'Leucocytes',   unit: '',  refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Blood',        unit: '',  refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Pus Cells',    unit: '/HPF', refText: '0-4',  type: 'text' },
-    { name: 'RBCs',         unit: '/HPF', refText: '0-2',  type: 'text' },
+    { name: 'Colour',        unit: '', refText: 'Yellow',   type: 'select', options: ['Yellow','Pale yellow','Dark yellow','Amber','Orange','Red','Brown','Clear'] },
+    { name: 'Appearance',    unit: '', refText: 'Clear',    type: 'select', options: ['Clear','Slightly turbid','Turbid','Cloudy'] },
+    { name: 'pH',            unit: '', refLow: 4.5, refHigh: 8.0, type: 'number' },
+    { name: 'Specific Gravity', unit: '', refLow: 1.005, refHigh: 1.030, type: 'number' },
+    { name: 'Protein',       unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
+    { name: 'Glucose',       unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
+    { name: 'Nitrites',      unit: '', refText: 'Negative', type: 'select', options: ['Negative','Positive'] },
+    { name: 'Leucocytes',    unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
+    { name: 'Blood',         unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
+    { name: 'Pus Cells',     unit: '/HPF', refText: '0-4', type: 'text' },
+    { name: 'RBCs',          unit: '/HPF', refText: '0-2', type: 'text' },
   ],
   'Random Blood Sugar (RBS)': [
     { name: 'Blood Glucose (Random)', unit: 'mmol/L', refLow: 3.9, refHigh: 11.1, type: 'number' },
@@ -39,7 +42,7 @@ const TEST_TEMPLATES = {
     { name: 'Pan-Malaria Ag (pLDH)',    unit: '', refText: 'Negative', type: 'select', options: ['Negative','Positive'] },
   ],
   'HIV 1 & 2 Antibody Test': [
-    { name: 'HIV 1 & 2 Ab (Screen)',  unit: '', refText: 'Non-reactive', type: 'select', options: ['Non-reactive','Reactive'] },
+    { name: 'HIV 1 & 2 Ab (Screen)', unit: '', refText: 'Non-reactive', type: 'select', options: ['Non-reactive','Reactive'] },
     { name: 'Final Result',           unit: '', refText: 'Negative',     type: 'select', options: ['Negative','Positive','Indeterminate'] },
   ],
   'Urea, Electrolytes & Creatinine (UECs)': [
@@ -47,30 +50,18 @@ const TEST_TEMPLATES = {
     { name: 'Potassium (K⁺)', unit: 'mmol/L', refLow: 3.5, refHigh: 5.1, type: 'number' },
     { name: 'Urea',           unit: 'mmol/L', refLow: 2.5, refHigh: 7.5, type: 'number' },
     { name: 'Creatinine',     unit: 'μmol/L', refLow: 62,  refHigh: 115, type: 'number' },
-    { name: 'eGFR',           unit: 'mL/min/1.73m²', refLow: 60, refHigh:120, type: 'number' },
+    { name: 'eGFR',           unit: 'mL/min/1.73m²', refLow: 60, refHigh: 120, type: 'number' },
   ],
   'Stool Analysis': [
-    { name: 'Colour',      unit: '', refText: 'Brown',  type: 'select', options: ['Brown','Yellow','Green','Black','Red','White'] },
-    { name: 'Consistency', unit: '', refText: 'Formed', type: 'select', options: ['Formed','Soft','Loose','Watery'] },
-    { name: 'Frank Blood', unit: '', refText: 'Absent', type: 'select', options: ['Absent','Present'] },
+    { name: 'Colour',      unit: '', refText: 'Brown',    type: 'select', options: ['Brown','Yellow','Green','Black','Red','White'] },
+    { name: 'Consistency', unit: '', refText: 'Formed',   type: 'select', options: ['Formed','Soft','Loose','Watery'] },
+    { name: 'Frank Blood', unit: '', refText: 'Absent',   type: 'select', options: ['Absent','Present'] },
     { name: 'Ova',         unit: '', refText: 'None seen', type: 'text' },
     { name: 'Cysts',       unit: '', refText: 'None seen', type: 'text' },
   ],
 };
 
-const STATUS_CFG = {
-  pending:    { badge: 'badge-amber',  label: 'Pending',    icon: '⏳' },
-  processing: { badge: 'badge-blue',   label: 'Processing', icon: '🔬' },
-  completed:  { badge: 'badge-green',  label: 'Completed',  icon: '✅' },
-  cancelled:  { badge: 'badge-red',    label: 'Cancelled',  icon: '✕'  },
-};
-
-const URGENCY_CFG = {
-  routine: { badge: 'badge-slate', label: 'Routine' },
-  urgent:  { badge: 'badge-amber', label: 'Urgent'  },
-  stat:    { badge: 'badge-red',   label: 'STAT'    },
-};
-
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function computeFlag(value, row) {
   if (row.type !== 'number') return null;
   const v = parseFloat(value);
@@ -80,123 +71,217 @@ function computeFlag(value, row) {
   return 'N';
 }
 
-function ResultEntryModal({ order, onClose, onSave }) {
-  const tests = (order.lab_order_items || []).map(i => i.test_name);
-  const [activeIdx, setActiveIdx]   = useState(0);
-  const [allResults, setAllResults] = useState({});
-  const [saving, setSaving]         = useState(false);
-  const testName = tests[activeIdx];
-  const template = TEST_TEMPLATES[testName] || [];
+function refInterval(row) {
+  if (row.refText) return row.refText;
+  if (row.refLow !== undefined && row.refHigh !== undefined) return `${row.refLow} – ${row.refHigh}`;
+  return '—';
+}
 
-  const results  = allResults[testName] || {};
-  const setField = (name, val) =>
-    setAllResults(prev => ({ ...prev, [testName]: { ...prev[testName], [name]: val } }));
+function patientName(order) {
+  const p = order?.patients;
+  if (!p) return '—';
+  return `${p.first_name} ${p.last_name}`;
+}
+
+function urgencyBadge(urgency) {
+  const cfg = { routine: 'bg-slate-100 text-slate-600', urgent: 'bg-amber-100 text-amber-700', stat: 'bg-red-100 text-red-700 animate-pulse' };
+  return <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${cfg[urgency] || cfg.routine} uppercase tracking-wider`}>{urgency || 'Routine'}</span>;
+}
+
+// ── PRINT REPORT ─────────────────────────────────────────────────────────────
+function PrintReport({ item, onClose }) {
+  const printRef = useRef();
+  const patient = item.lab_orders?.patients;
+  let parsedResult = {};
+  try { parsedResult = item.result ? JSON.parse(item.result) : {}; } catch {}
+  const template = TEST_TEMPLATES[item.test_name] || [];
+
+  const handlePrint = () => {
+    const content = printRef.current.innerHTML;
+    const w = window.open('', '_blank');
+    w.document.write(`
+      <html><head><title>Lab Report — ${item.test_name}</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 40px; }
+        h1 { font-size: 18px; margin-bottom: 4px; }
+        h2 { font-size: 14px; margin: 16px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; font-weight: bold; }
+        .flag-H { color: red; font-weight: bold; }
+        .flag-L { color: blue; font-weight: bold; }
+        .flag-N { color: green; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 16px; }
+        @media print { button { display: none; } }
+      </style></head><body>${content}</body></html>
+    `);
+    w.document.close();
+    w.print();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-6 border border-slate-200">
+        <div className="flex justify-between items-center px-6 py-4 bg-primary-600 rounded-t-2xl">
+          <div>
+            <h2 className="font-black text-white text-lg">Result Preview & Print</h2>
+            <p className="text-blue-200 text-xs">{item.test_name} · {item.lab_id}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handlePrint} className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-3 py-1.5 rounded-lg transition-colors">
+              <Print sx={{ fontSize: 16 }} /> Print
+            </button>
+            <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold">×</button>
+          </div>
+        </div>
+        <div ref={printRef} className="p-6">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className="text-xl font-black text-slate-800">Biopassion HMS</h1>
+              <p className="text-xs text-slate-500">Laboratory Report</p>
+            </div>
+            <div className="text-right text-xs text-slate-500">
+              <p className="font-bold">{item.lab_id}</p>
+              <p>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 mb-6 text-sm">
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Patient</p><p className="font-bold text-slate-800">{patient?.first_name} {patient?.last_name}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Patient No.</p><p className="font-bold font-mono">{patient?.patient_no}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Age / Gender</p><p className="font-bold">{patient?.age} · {patient?.gender}</p></div>
+            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Test</p><p className="font-bold">{item.test_name}</p></div>
+          </div>
+          <h2 className="font-black text-slate-700 mb-3 border-b border-slate-200 pb-2">Results</h2>
+          {template.length > 0 ? (
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-slate-50">
+                <tr>
+                  {['Parameter', 'Result', 'Unit', 'Flag', 'Reference Range'].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-xs font-bold text-slate-500 border border-slate-200">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {template.map(row => {
+                  const val = parsedResult[row.name] || '';
+                  const flag = computeFlag(val, row);
+                  return (
+                    <tr key={row.name} className={flag === 'H' || flag === 'L' ? 'bg-red-50' : ''}>
+                      <td className="px-3 py-2 border border-slate-200 font-medium">{row.name}</td>
+                      <td className={`px-3 py-2 border border-slate-200 font-bold ${flag === 'H' || flag === 'L' ? 'text-red-700' : ''}`}>{val || '—'}</td>
+                      <td className="px-3 py-2 border border-slate-200 text-slate-500 text-xs">{row.unit || '—'}</td>
+                      <td className="px-3 py-2 border border-slate-200">
+                        {flag && <span className={`font-bold text-xs font-mono flag-${flag} ${flag === 'H' ? 'text-red-600' : flag === 'L' ? 'text-blue-600' : 'text-emerald-600'}`}>{flag}</span>}
+                      </td>
+                      <td className="px-3 py-2 border border-slate-200 text-slate-500 text-xs">{refInterval(row)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap">
+              {parsedResult.__freetext || item.result || '—'}
+            </div>
+          )}
+          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between text-xs text-slate-400">
+            <span>Validated by: {item.validated_at ? new Date(item.validated_at).toLocaleString() : 'Pending'}</span>
+            <span>Printed: {new Date().toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── RESULT ENTRY MODAL ────────────────────────────────────────────────────────
+function ResultEntryModal({ item, onClose, onSave }) {
+  const testName = item.test_name;
+  const template = TEST_TEMPLATES[testName] || [];
+  let initial = {};
+  try { initial = item.result ? JSON.parse(item.result) : {}; } catch {}
+  const [results, setResults] = useState(initial);
+  const [saving, setSaving]   = useState(false);
+
+  const setField = (name, val) => setResults(prev => ({ ...prev, [name]: val }));
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Map results text for each lab_order_item
-      const itemUpdates = (order.lab_order_items || []).map(item => ({
-        id:     item.id,
-        result: JSON.stringify(allResults[item.test_name] || {}),
-      }));
-      await onSave(order.id, itemUpdates);
+      await onSave(item.id, results);
       onClose();
     } catch (e) {
-      alert('Failed to save results: ' + e.message);
+      alert('Failed to save: ' + e.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const refInterval = (row) => {
-    if (row.refText) return row.refText;
-    if (row.refLow !== undefined && row.refHigh !== undefined) return `${row.refLow} – ${row.refHigh}`;
-    return '—';
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-6 border border-slate-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-6 border border-slate-200">
         <div className="flex justify-between items-start px-6 py-4 bg-primary-600 rounded-t-2xl">
           <div>
             <h2 className="font-black text-white text-lg">Enter Results</h2>
-            <p className="text-blue-200 text-xs">
-              {order.patients?.first_name} {order.patients?.last_name} · {order.patients?.patient_no}
-            </p>
+            <p className="text-blue-200 text-xs">{testName} · {item.lab_id}</p>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold">×</button>
         </div>
-
-        <div className="flex border-b border-slate-200 px-6 gap-1 overflow-x-auto bg-slate-50">
-          {tests.map((t, i) => (
-            <button key={t} onClick={() => setActiveIdx(i)}
-              className={`shrink-0 px-4 py-3 text-xs font-bold border-b-2 transition-colors whitespace-nowrap
-                ${activeIdx === i ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-6 overflow-y-auto max-h-[55vh]">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                {['Test Parameter', 'Result', 'Unit', 'Flag', 'Reference'].map(h => (
-                  <th key={h} className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {template.length === 0 && (
+        <div className="p-6 overflow-y-auto max-h-[60vh]">
+          {template.length > 0 ? (
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50">
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-400 text-sm">
-                    No template. Enter free-text result below.
-                  </td>
+                  {['Parameter', 'Result', 'Unit', 'Flag', 'Reference'].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
+                  ))}
                 </tr>
-              )}
-              {template.map(row => {
-                const val  = results[row.name] || '';
-                const flag = computeFlag(val, row);
-                const isAbn = flag === 'H' || flag === 'L';
-                return (
-                  <tr key={row.name} className={isAbn ? 'bg-red-50' : ''}>
-                    <td className={`px-3 py-2 font-semibold ${isAbn ? 'text-red-700' : 'text-slate-800'}`}>{row.name}</td>
-                    <td className="px-3 py-2">
-                      {row.type === 'select' ? (
-                        <select className="input text-sm py-1.5" value={val} onChange={e => setField(row.name, e.target.value)}>
-                          <option value="">—</option>
-                          {row.options?.map(o => <option key={o}>{o}</option>)}
-                        </select>
-                      ) : (
-                        <input type={row.type === 'number' ? 'number' : 'text'} step="any"
-                          className={`input text-sm py-1.5 ${isAbn ? 'border-red-300 bg-red-50' : ''}`}
-                          value={val} onChange={e => setField(row.name, e.target.value)} placeholder="—" />
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-slate-500 text-xs">{row.unit || '—'}</td>
-                    <td className="px-3 py-2">
-                      {val && flag && (
-                        <span className={`badge font-mono ${flag === 'H' ? 'badge-red' : flag === 'L' ? 'badge-blue' : 'badge-green'}`}>{flag}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-slate-500 text-xs">{refInterval(row)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {template.length === 0 && (
-            <textarea rows={4} value={results['__freetext'] || ''}
-              onChange={e => setField('__freetext', e.target.value)}
-              placeholder="Enter result here…" className="input resize-none mt-4" />
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {template.map(row => {
+                  const val  = results[row.name] || '';
+                  const flag = computeFlag(val, row);
+                  const isAbn = flag === 'H' || flag === 'L';
+                  return (
+                    <tr key={row.name} className={isAbn ? 'bg-red-50' : ''}>
+                      <td className={`px-3 py-2 font-semibold ${isAbn ? 'text-red-700' : 'text-slate-800'}`}>{row.name}</td>
+                      <td className="px-3 py-2">
+                        {row.type === 'select' ? (
+                          <select className="input text-sm py-1.5" value={val} onChange={e => setField(row.name, e.target.value)}>
+                            <option value="">—</option>
+                            {row.options?.map(o => <option key={o}>{o}</option>)}
+                          </select>
+                        ) : (
+                          <input type={row.type === 'number' ? 'number' : 'text'} step="any"
+                            className={`input text-sm py-1.5 ${isAbn ? 'border-red-300 bg-red-50' : ''}`}
+                            value={val} onChange={e => setField(row.name, e.target.value)} placeholder="—" />
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 text-xs">{row.unit || '—'}</td>
+                      <td className="px-3 py-2">
+                        {val && flag && (
+                          <span className={`badge font-mono text-xs ${flag === 'H' ? 'badge-red' : flag === 'L' ? 'badge-blue' : 'badge-green'}`}>{flag}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 text-xs">{refInterval(row)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div>
+              <p className="text-sm text-slate-500 mb-3">No structured template — enter free-text result:</p>
+              <textarea rows={5} value={results.__freetext || ''}
+                onChange={e => setField('__freetext', e.target.value)}
+                placeholder="Enter result here…" className="input resize-none" />
+            </div>
           )}
         </div>
-
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="btn-primary">
-            <Save sx={{ fontSize: 16 }} /> {saving ? 'Saving…' : 'Save & Submit Results'}
+            <Science sx={{ fontSize: 16 }} /> {saving ? 'Saving…' : 'Save Results'}
           </button>
         </div>
       </div>
@@ -204,20 +289,101 @@ function ResultEntryModal({ order, onClose, onSave }) {
   );
 }
 
+// ── REJECT SAMPLE MODAL ───────────────────────────────────────────────────────
+function RejectModal({ item, onClose, onReject }) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const presets = ['Insufficient sample', 'Haemolysed sample', 'Wrong container', 'Clotted sample', 'Unlabelled specimen', 'Expired container'];
+
+  const handleReject = async () => {
+    if (!reason.trim()) { alert('Please provide a rejection reason.'); return; }
+    setSaving(true);
+    try {
+      await onReject(item.id, reason);
+      onClose();
+    } catch (e) {
+      alert('Failed: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-red-200">
+        <div className="flex justify-between items-center px-6 py-4 bg-red-600 rounded-t-2xl">
+          <div>
+            <h2 className="font-black text-white">Reject Sample</h2>
+            <p className="text-red-200 text-xs">{item.test_name} · {item.lab_id}</p>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold">×</button>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-slate-600">Select a reason or type a custom one:</p>
+          <div className="flex flex-wrap gap-2">
+            {presets.map(p => (
+              <button key={p} onClick={() => setReason(p)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all
+                  ${reason === p ? 'bg-red-100 text-red-700 border-red-300' : 'bg-white text-slate-600 border-slate-200 hover:border-red-200'}`}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <textarea rows={3} value={reason} onChange={e => setReason(e.target.value)}
+            placeholder="Or type custom reason…" className="input resize-none text-sm" />
+        </div>
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={handleReject} disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm transition-colors">
+            <Cancel sx={{ fontSize: 16 }} /> {saving ? 'Rejecting…' : 'Reject Sample'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TABLE HEADER ROW ──────────────────────────────────────────────────────────
+function TH({ children, className = '' }) {
+  return <th className={`px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-left whitespace-nowrap ${className}`}>{children}</th>;
+}
+function TD({ children, className = '' }) {
+  return <td className={`px-4 py-4 ${className}`}>{children}</td>;
+}
+
+// ── MAIN LABORATORY PAGE ──────────────────────────────────────────────────────
+const STAGES = [
+  { key: 'requests',   label: 'Lab Requests',      icon: <Assignment sx={{ fontSize: 16 }} /> },
+  { key: 'sample',     label: 'Sample Collection',  icon: <MedicalServices sx={{ fontSize: 16 }} /> },
+  { key: 'results',    label: 'Results',            icon: <Science sx={{ fontSize: 16 }} /> },
+  { key: 'validation', label: 'Validation',         icon: <FactCheck sx={{ fontSize: 16 }} /> },
+  { key: 'posted',     label: 'Posted',             icon: <Send sx={{ fontSize: 16 }} /> },
+];
+
 export default function Laboratory() {
   const { user } = useAuth();
-  const [orders, setOrders]       = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
-  const [statusFilter, setStatus] = useState('all');
-  const [search, setSearch]       = useState('');
-  const [entering, setEntering]   = useState(null);
+  const [stage, setStage] = useState('requests');
+  const [orders,  setOrders]  = useState([]);
+  const [items,   setItems]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
+  const [search,  setSearch]  = useState('');
 
-  const loadOrders = useCallback(async () => {
+  // Modals
+  const [enteringResult, setEnteringResult] = useState(null);
+  const [rejectingItem,  setRejectingItem]  = useState(null);
+  const [previewItem,    setPreviewItem]    = useState(null);
+
+  const loadAll = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await labService.list();
-      setOrders(data || []);
+      const [ordersData, itemsData] = await Promise.all([
+        labService.listOrders(),
+        labService.listItems(),
+      ]);
+      setOrders(ordersData);
+      setItems(itemsData);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -225,139 +391,427 @@ export default function Laboratory() {
     }
   }, []);
 
-  useEffect(() => { loadOrders(); }, [loadOrders]);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
-  const handleStartProcessing = async (orderId) => {
-    await labService.updateStatus(orderId, 'processing');
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'processing' } : o));
-  };
-
-  const handleSaveResults = async (orderId, itemUpdates) => {
-    await labService.saveResults(orderId, itemUpdates);
-    await loadOrders();
-  };
+  // ── Derived data per stage ────────────────────────────────────────────────
+  const pendingOrders   = orders.filter(o => o.status === 'pending');
+  const sampleItems     = items.filter(i => i.sample_status === 'pending' && i.lab_orders?.status === 'processing');
+  const resultsItems    = items.filter(i => i.sample_status === 'collected' && !i.result && i.status !== 'cancelled');
+  const validationItems = items.filter(i => i.sample_status === 'collected' && i.result && i.status !== 'completed' && !i.posted_at);
+  const postedItems     = items.filter(i => i.posted_at);
 
   const counts = {
-    pending:    orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
-    completed:  orders.filter(o => o.status === 'completed').length,
+    requests:   pendingOrders.length,
+    sample:     sampleItems.length,
+    results:    resultsItems.length,
+    validation: validationItems.length,
+    posted:     postedItems.length,
   };
 
-  const filtered = orders
-    .filter(o => statusFilter === 'all' || o.status === statusFilter)
-    .filter(o => {
-      const name = `${o.patients?.first_name || ''} ${o.patients?.last_name || ''}`.toLowerCase();
-      const no   = o.patients?.patient_no?.toLowerCase() || '';
-      return name.includes(search.toLowerCase()) || no.includes(search.toLowerCase());
-    });
+  // ── Search filter helpers ─────────────────────────────────────────────────
+  const matchesSearch = (orderObj) => {
+    if (!search) return true;
+    const p = orderObj?.patients;
+    const name = `${p?.first_name || ''} ${p?.last_name || ''}`.toLowerCase();
+    const no   = (p?.patient_no || '').toLowerCase();
+    return name.includes(search.toLowerCase()) || no.includes(search.toLowerCase());
+  };
+  const matchesItemSearch = (item) => matchesSearch(item.lab_orders);
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const handleReceive = async (orderId) => {
+    try {
+      await labService.receiveOrder(orderId);
+      await loadAll();
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
+  const handleAcceptSample = async (itemId) => {
+    try {
+      await labService.acceptSample(itemId);
+      await loadAll();
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
+  const handleRejectSample = async (itemId, reason) => {
+    await labService.rejectSample(itemId, reason);
+    await loadAll();
+  };
+
+  const handleSaveResult = async (itemId, resultObj) => {
+    await labService.saveItemResult(itemId, resultObj);
+    await loadAll();
+  };
+
+  const handleValidate = async (itemId) => {
+    try {
+      await labService.validateItem(itemId, user.id);
+      await loadAll();
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
+  const handlePost = async (orderId) => {
+    const confirm = window.confirm('Post all validated results for this order? This will notify the doctor.');
+    if (!confirm) return;
+    try {
+      await labService.postOrder(orderId);
+      await loadAll();
+      alert('Results posted. Patient has been returned to the Doctor\'s Queue.');
+    } catch (e) { alert('Error: ' + e.message); }
+  };
+
+  // Group posted items by order
+  const postedByOrder = postedItems.reduce((acc, item) => {
+    const oid = item.lab_orders?.id || 'unknown';
+    if (!acc[oid]) acc[oid] = { order: item.lab_orders, items: [] };
+    acc[oid].items.push(item);
+    return acc;
+  }, {});
+
+  const currentStageItems = { requests: pendingOrders, sample: sampleItems, results: resultsItems, validation: validationItems, posted: postedItems };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Laboratory</h1>
-          <p className="text-sm text-slate-500">Test requests, results entry and validation</p>
+          <p className="text-sm text-slate-500">5-stage test workflow: Request → Sample → Results → Validation → Posted</p>
         </div>
-        <button onClick={loadOrders} className="btn-secondary shrink-0">
-          <Refresh sx={{ fontSize: 16 }} /> Refresh
+        <button onClick={loadAll} className="btn-secondary shrink-0 group">
+          <Refresh sx={{ fontSize: 18 }} className="group-hover:rotate-180 transition-transform duration-500" /> Refresh
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-4 text-center border-amber-100 bg-amber-50">
-          <p className="text-3xl font-black text-amber-700">{counts.pending}</p>
-          <p className="text-xs font-bold text-amber-500 uppercase tracking-wide">Awaiting Processing</p>
-        </div>
-        <div className="card p-4 text-center border-blue-100 bg-blue-50">
-          <p className="text-3xl font-black text-blue-700">{counts.processing}</p>
-          <p className="text-xs font-bold text-blue-500 uppercase tracking-wide">In Progress</p>
-        </div>
-        <div className="card p-4 text-center border-emerald-100 bg-emerald-50">
-          <p className="text-3xl font-black text-emerald-700">{counts.completed}</p>
-          <p className="text-xs font-bold text-emerald-500 uppercase tracking-wide">Results Ready</p>
+      {/* Pipeline Progress Bar */}
+      <div className="card p-4 border border-slate-200">
+        <div className="flex items-center gap-0">
+          {STAGES.map((s, idx) => (
+            <React.Fragment key={s.key}>
+              <button
+                onClick={() => setStage(s.key)}
+                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl transition-all border-2
+                  ${stage === s.key
+                    ? 'bg-primary-600 border-primary-600 text-white shadow-md'
+                    : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'}`}>
+                <span className="text-lg">{s.icon}</span>
+                <span className="text-[11px] font-bold text-center leading-tight">{s.label}</span>
+                <span className={`text-lg font-black ${stage === s.key ? 'text-white' : counts[s.key] > 0 ? 'text-primary-600' : 'text-slate-300'}`}>
+                  {counts[s.key]}
+                </span>
+              </button>
+              {idx < STAGES.length - 1 && (
+                <div className={`h-0.5 w-4 shrink-0 ${counts[STAGES[idx+1].key] > 0 || stage === STAGES[idx+1].key ? 'bg-primary-300' : 'bg-slate-200'}`} />
+              )}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 
       {error && <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-semibold">⚠️ {error}</div>}
 
-      <div className="card p-3 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search patient…" className="input pl-9" />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {['all','pending','processing','completed'].map(s => (
-            <button key={s} onClick={() => setStatus(s)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all capitalize
-                ${statusFilter === s ? 'bg-primary-600 text-white border-transparent' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-              {s === 'all' ? `All (${orders.length})` : `${s} (${counts[s] ?? 0})`}
-            </button>
-          ))}
-        </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by patient name or ID…"
+          className="input pl-9 bg-white border-slate-200 shadow-sm" />
       </div>
 
-      <div className="space-y-3">
-        {loading && <div className="card p-8 text-center text-slate-400">Loading lab orders…</div>}
-        {!loading && filtered.map(order => {
-          const sc = STATUS_CFG[order.status] || STATUS_CFG.pending;
-          const uc = URGENCY_CFG[order.urgency] || URGENCY_CFG.routine;
-          const tests = (order.lab_order_items || []).map(i => i.test_name);
-          return (
-            <div key={order.id}
-              className={`card p-4 border-l-4 ${order.urgency === 'stat' ? 'border-l-red-500' : order.urgency === 'urgent' ? 'border-l-amber-400' : 'border-l-slate-200'}`}>
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="font-black text-slate-800">
-                      {order.patients?.first_name} {order.patients?.last_name}
-                    </h3>
-                    <span className={`badge ${sc.badge}`}>{sc.icon} {sc.label}</span>
-                    <span className={`badge ${uc.badge}`}>{uc.label}</span>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {order.patients?.patient_no} · {order.patients?.age} · {order.patients?.gender} ·{' '}
-                    {new Date(order.ordered_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {tests.map(t => <span key={t} className="badge badge-slate text-xs">{t}</span>)}
-                    {tests.length === 0 && <span className="text-xs text-slate-400 italic">No tests attached</span>}
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  {order.status === 'pending' && (
-                    <button onClick={() => handleStartProcessing(order.id)} className="btn-secondary text-sm py-2">
-                      Start Processing
-                    </button>
-                  )}
-                  {(order.status === 'pending' || order.status === 'processing') && (
-                    <button onClick={() => setEntering(order)} className="btn-primary text-sm py-2">
-                      <Science sx={{ fontSize: 16 }} /> Enter Results
-                    </button>
-                  )}
-                  {order.status === 'completed' && (
-                    <button className="btn-secondary text-sm py-2 text-emerald-600">
-                      <Print sx={{ fontSize: 16 }} /> Print Report
-                    </button>
-                  )}
-                </div>
-              </div>
+      {/* ── STAGE CONTENT ──────────────────────────────────────────────── */}
+      <div className="card border border-slate-200 overflow-hidden">
+
+        {/* Stage 1: Lab Requests */}
+        {stage === 'requests' && (
+          <div>
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="font-black text-slate-700">Lab Requests <span className="text-slate-400 font-normal text-sm">— Awaiting acknowledgement</span></h2>
             </div>
-          );
-        })}
-        {!loading && filtered.length === 0 && (
-          <div className="card p-12 text-center text-slate-400">
-            <Science sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
-            <p className="font-bold text-slate-500">
-              {orders.length === 0 ? 'No lab orders yet — orders are created by doctors during consultation' : 'No orders match your filter'}
-            </p>
+            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading requests…</div>}
+            {!loading && pendingOrders.filter(matchesSearch).length === 0 && (
+              <div className="p-16 text-center text-slate-400">
+                <Assignment sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
+                <p className="font-bold">No pending lab requests</p>
+                <p className="text-sm mt-1">Orders created by doctors during consultation will appear here.</p>
+              </div>
+            )}
+            {!loading && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px]">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr><TH>Patient</TH><TH>Patient No.</TH><TH>Tests Ordered</TH><TH>Priority</TH><TH>Requested</TH><TH className="text-right">Action</TH></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {pendingOrders.filter(matchesSearch).map(order => (
+                      <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                        <TD><span className="font-bold text-slate-800">{patientName(order)}</span></TD>
+                        <TD><span className="font-mono text-xs text-slate-500">{order.patients?.patient_no}</span></TD>
+                        <TD>
+                          <div className="flex flex-wrap gap-1">
+                            {(order.lab_order_items || []).map(i => (
+                              <span key={i.id} className="px-2 py-0.5 bg-primary-50 text-primary-700 border border-primary-100 rounded-full text-[11px] font-semibold">{i.test_name}</span>
+                            ))}
+                          </div>
+                        </TD>
+                        <TD>{urgencyBadge(order.urgency)}</TD>
+                        <TD><span className="text-xs text-slate-500">{new Date(order.ordered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></TD>
+                        <TD className="text-right">
+                          <button onClick={() => handleReceive(order.id)}
+                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs rounded-xl transition-all active:scale-95 shadow-sm">
+                            Receive Request
+                          </button>
+                        </TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stage 2: Sample Collection */}
+        {stage === 'sample' && (
+          <div>
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="font-black text-slate-700">Sample Collection <span className="text-slate-400 font-normal text-sm">— Accept or reject incoming samples</span></h2>
+            </div>
+            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!loading && sampleItems.filter(matchesItemSearch).length === 0 && (
+              <div className="p-16 text-center text-slate-400">
+                <MedicalServices sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
+                <p className="font-bold">No samples awaiting collection</p>
+                <p className="text-sm mt-1">Received orders will appear here, broken down by individual test.</p>
+              </div>
+            )}
+            {!loading && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr><TH>Lab ID</TH><TH>Test</TH><TH>Patient</TH><TH>Patient No.</TH><TH>Priority</TH><TH className="text-right">Actions</TH></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {sampleItems.filter(matchesItemSearch).map(item => (
+                      <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                        <TD><span className="font-mono text-sm font-black text-primary-700">{item.lab_id || '—'}</span></TD>
+                        <TD><span className="font-semibold text-slate-800">{item.test_name}</span></TD>
+                        <TD><span className="font-medium">{patientName(item.lab_orders)}</span></TD>
+                        <TD><span className="font-mono text-xs text-slate-500">{item.lab_orders?.patients?.patient_no}</span></TD>
+                        <TD>{urgencyBadge(item.lab_orders?.urgency)}</TD>
+                        <TD className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => setRejectingItem(item)}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs rounded-xl transition-all flex items-center gap-1">
+                              <Cancel sx={{ fontSize: 14 }} /> Reject
+                            </button>
+                            <button onClick={() => handleAcceptSample(item.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1 shadow-sm">
+                              <CheckCircle sx={{ fontSize: 14 }} /> Accept
+                            </button>
+                          </div>
+                        </TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stage 3: Results Entry */}
+        {stage === 'results' && (
+          <div>
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="font-black text-slate-700">Results Entry <span className="text-slate-400 font-normal text-sm">— Enter test results for accepted samples</span></h2>
+            </div>
+            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!loading && resultsItems.filter(matchesItemSearch).length === 0 && (
+              <div className="p-16 text-center text-slate-400">
+                <Science sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
+                <p className="font-bold">No samples awaiting results</p>
+                <p className="text-sm mt-1">Accept samples in the Sample Collection stage first.</p>
+              </div>
+            )}
+            {!loading && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr><TH>Lab ID</TH><TH>Test</TH><TH>Patient</TH><TH>Patient No.</TH><TH>Status</TH><TH className="text-right">Action</TH></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {resultsItems.filter(matchesItemSearch).map(item => (
+                      <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                        <TD><span className="font-mono text-sm font-black text-primary-700">{item.lab_id || '—'}</span></TD>
+                        <TD><span className="font-semibold text-slate-800">{item.test_name}</span></TD>
+                        <TD><span className="font-medium">{patientName(item.lab_orders)}</span></TD>
+                        <TD><span className="font-mono text-xs text-slate-500">{item.lab_orders?.patients?.patient_no}</span></TD>
+                        <TD>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[11px] font-bold">
+                            <HourglassEmpty sx={{ fontSize: 12 }} /> Awaiting Results
+                          </span>
+                        </TD>
+                        <TD className="text-right">
+                          <button onClick={() => setEnteringResult(item)}
+                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs rounded-xl transition-all active:scale-95 shadow-sm flex items-center gap-1.5 ml-auto">
+                            <Science sx={{ fontSize: 14 }} /> Enter Results
+                          </button>
+                        </TD>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stage 4: Validation */}
+        {stage === 'validation' && (
+          <div>
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="font-black text-slate-700">Validation <span className="text-slate-400 font-normal text-sm">— Review, preview, and validate results before posting</span></h2>
+            </div>
+            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!loading && validationItems.filter(matchesItemSearch).length === 0 && (
+              <div className="p-16 text-center text-slate-400">
+                <FactCheck sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
+                <p className="font-bold">No results awaiting validation</p>
+                <p className="text-sm mt-1">Enter results in the Results stage first.</p>
+              </div>
+            )}
+            {!loading && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px]">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr><TH>Lab ID</TH><TH>Test</TH><TH>Patient</TH><TH>Result Summary</TH><TH>Status</TH><TH className="text-right">Actions</TH></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {validationItems.filter(matchesItemSearch).map(item => {
+                      let parsed = {};
+                      try { parsed = item.result ? JSON.parse(item.result) : {}; } catch {}
+                      const hasFreeText = parsed.__freetext;
+                      const keys = Object.keys(parsed).filter(k => k !== '__freetext');
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                          <TD><span className="font-mono text-sm font-black text-primary-700">{item.lab_id || '—'}</span></TD>
+                          <TD><span className="font-semibold text-slate-800">{item.test_name}</span></TD>
+                          <TD><span className="font-medium">{patientName(item.lab_orders)}</span></TD>
+                          <TD>
+                            <div className="text-xs text-slate-500 max-w-[200px] truncate">
+                              {hasFreeText ? parsed.__freetext :
+                                keys.slice(0, 3).map(k => `${k}: ${parsed[k]}`).join('  ·  ')}
+                              {keys.length > 3 && <span className="text-slate-400"> +{keys.length - 3} more</span>}
+                            </div>
+                          </TD>
+                          <TD>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[11px] font-bold">
+                              Results Entered
+                            </span>
+                          </TD>
+                          <TD className="text-right">
+                            <div className="flex gap-2 justify-end">
+                              <button onClick={() => setPreviewItem(item)}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs rounded-xl transition-all flex items-center gap-1">
+                                <Print sx={{ fontSize: 14 }} /> Preview
+                              </button>
+                              <button onClick={() => handleValidate(item.id)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1 shadow-sm">
+                                <FactCheck sx={{ fontSize: 14 }} /> Validate
+                              </button>
+                            </div>
+                          </TD>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Post panel — show if there are validated (completed) but not-yet-posted items */}
+            {!loading && (() => {
+              const readyToPost = items.filter(i => i.status === 'completed' && !i.posted_at);
+              if (readyToPost.length === 0) return null;
+              const byOrder = readyToPost.reduce((acc, item) => {
+                const oid = item.lab_orders?.id;
+                if (!acc[oid]) acc[oid] = { order: item.lab_orders, items: [] };
+                acc[oid].items.push(item);
+                return acc;
+              }, {});
+              return (
+                <div className="border-t border-slate-100 p-4 space-y-3">
+                  <p className="text-sm font-bold text-slate-500 px-2">Ready to Post ({readyToPost.length} validated test{readyToPost.length > 1 ? 's' : ''})</p>
+                  {Object.values(byOrder).map(({ order, items: oi }) => (
+                    <div key={order?.id} className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+                      <div>
+                        <p className="font-bold text-slate-800 text-sm">{patientName(order)}</p>
+                        <p className="text-xs text-slate-500">{oi.length} test{oi.length > 1 ? 's' : ''} validated · {order?.patients?.patient_no}</p>
+                      </div>
+                      <button onClick={() => handlePost(order?.id)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm">
+                        <Send sx={{ fontSize: 14 }} /> Post Results to Doctor
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Stage 5: Posted */}
+        {stage === 'posted' && (
+          <div>
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="font-black text-slate-700">Posted Results <span className="text-slate-400 font-normal text-sm">— Published to doctors</span></h2>
+            </div>
+            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!loading && Object.values(postedByOrder).filter(({ order }) => matchesSearch(order)).length === 0 && (
+              <div className="p-16 text-center text-slate-400">
+                <Send sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
+                <p className="font-bold">No results posted yet</p>
+              </div>
+            )}
+            {!loading && (
+              <div className="p-4 space-y-4">
+                {Object.values(postedByOrder).filter(({ order }) => matchesSearch(order)).map(({ order, items: oi }) => (
+                  <div key={order?.id} className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="flex justify-between items-center px-5 py-3 bg-slate-50 border-b border-slate-100">
+                      <div>
+                        <p className="font-black text-slate-800">{patientName(order)}</p>
+                        <p className="text-xs text-slate-500">{order?.patients?.patient_no} · Posted {new Date(oi[0]?.posted_at).toLocaleDateString()}</p>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
+                        <CheckCircle sx={{ fontSize: 12 }} /> Posted
+                      </span>
+                    </div>
+                    <div className="divide-y divide-slate-50">
+                      {oi.map(item => (
+                        <div key={item.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-xs font-bold text-primary-600">{item.lab_id}</span>
+                            <span className="text-sm font-semibold text-slate-700">{item.test_name}</span>
+                          </div>
+                          <button onClick={() => setPreviewItem(item)}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition-all">
+                            <Print sx={{ fontSize: 13 }} /> Print
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {entering && (
-        <ResultEntryModal order={entering} onClose={() => setEntering(null)} onSave={handleSaveResults} />
-      )}
+      {/* Modals */}
+      {rejectingItem  && <RejectModal item={rejectingItem}  onClose={() => setRejectingItem(null)}  onReject={handleRejectSample} />}
+      {enteringResult && <ResultEntryModal item={enteringResult} onClose={() => setEnteringResult(null)} onSave={handleSaveResult} />}
+      {previewItem    && <PrintReport item={previewItem}    onClose={() => setPreviewItem(null)} />}
     </div>
   );
 }

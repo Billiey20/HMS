@@ -7,11 +7,11 @@ export default function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd]   = useState(false);
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,29 +51,7 @@ export default function Login() {
             <h1 className="text-4xl font-black leading-tight mb-4">
               Hospital<br />Management<br />System
             </h1>
-            <p className="text-blue-200 text-sm leading-relaxed max-w-xs">
-              Comprehensive Level 4 hospital operations — OPD, Inpatient, Pharmacy, Lab, Inventory, and Billing — unified in one system.
-            </p>
           </div>
-        </div>
-
-        <div className="relative z-10 space-y-3">
-          {[
-            { role: 'Reception', desc: 'Patient registration & OPD queue' },
-            { role: 'Clinician', desc: 'Consultation, diagnosis & prescriptions' },
-            { role: 'Nursing', desc: 'Ward rounds & medication administration' },
-            { role: 'Pharmacy', desc: 'Medication dispensing & stock' },
-            { role: 'Laboratory', desc: 'Test processing & results' },
-            { role: 'Admin', desc: 'Full system access & reporting' },
-          ].map(({ role, desc }) => (
-            <div key={role} className="flex items-start gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
-              <div>
-                <span className="text-xs font-bold">{role}</span>
-                <span className="text-xs text-blue-300"> — {desc}</span>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -91,8 +69,8 @@ export default function Login() {
             </div>
           </div>
 
-          <h2 className="text-2xl font-black text-slate-800 mb-1">Staff Sign In</h2>
-          <p className="text-sm text-slate-500 mb-8">Enter your credentials to access the system.</p>
+          <h2 className="text-2xl font-black text-slate-800 mb-1">Sign In</h2>
+          <p className="text-sm text-slate-500 mb-8">Enter your credentials to log in.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

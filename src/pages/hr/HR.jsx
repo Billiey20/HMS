@@ -9,69 +9,153 @@ const DEPARTMENTS = [
   'Maternity', 'Surgical', 'ICU / HDU', 'Administration', 'Finance & Billing', 'Human Resources'
 ];
 
-const ROLES = ['admin', 'doctor', 'nurse', 'reception', 'pharmacy', 'lab_staff', 'billing', 'hr'];
+const ROLES = ['admin', 'doctor', 'nurse', 'triage', 'reception', 'pharmacy', 'lab_staff', 'billing', 'hr', 'store_keeper'];
 
 const ROLE_BADGE = {
-  admin:     'badge-blue',    doctor:    'badge-green',
-  nurse:     'badge-green',   reception: 'badge-slate',
-  pharmacy:  'badge-amber',   lab_staff: 'badge-blue',
-  billing:   'badge-amber',   hr:        'badge-slate',
+  admin:        'badge-blue',    doctor:       'badge-green',
+  nurse:        'badge-green',   triage:       'badge-emerald',
+  reception:    'badge-slate',   pharmacy:     'badge-amber',
+  lab_staff:    'badge-blue',    billing:      'badge-amber',
+  hr:           'badge-slate',   store_keeper: 'badge-amber',
 };
 
 function AddStaffModal({ onClose, onSave }) {
-  const emp = { firstName: '', lastName: '', email: '', phone: '', role: '', dept: '', empNo: '', status: 'active' };
-  const [form, setForm] = useState(emp);
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '', roleId: '', deptId: '', empNo: '', dutyStation: '' });
+  const [depts, setDepts] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
   const f = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [d, r] = await Promise.all([hrService.getDepartments(), hrService.getRoles()]);
+        setDepts(d || []);
+        setRoles(r || []);
+      } finally { setLoading(false); }
+    };
+    load();
+  }, []);
+
   const handleSave = async () => {
+    if (!form.firstName || !form.lastName || !form.email || !form.password || !form.roleId) {
+      return alert('Please fill in all required fields (*)');
+    }
     setSaving(true);
-    try { await onSave(form); onClose(); }
-    catch (e) { alert('Failed: ' + e.message); }
-    finally { setSaving(false); }
+    try {
+      await hrService.createUser({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        password: form.password,
+        employeeNo: form.empNo,
+        departmentId: form.deptId || null,
+        roleId: form.roleId,
+        dutyStation: form.dutyStation,
+      });
+      onSave();
+      onClose();
+    } catch (e) {
+      alert('Failed: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl border border-slate-200">
         <div className="flex justify-between items-center px-6 py-4 bg-primary-600 rounded-t-2xl">
           <h2 className="font-black text-white text-lg">Add Staff Member</h2>
           <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold">×</button>
         </div>
-        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">First Name *</label><input className="input" value={form.firstName} onChange={f('firstName')} /></div>
-            <div><label className="label">Last Name *</label><input className="input" value={form.lastName} onChange={f('lastName')} /></div>
-          </div>
-          <div><label className="label">Email *</label><input type="email" className="input" value={form.email} onChange={f('email')} placeholder="staff@biopassion.com" /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={f('phone')} placeholder="07XXXXXXXX" /></div>
-            <div><label className="label">Employee No.</label><input className="input" value={form.empNo} onChange={f('empNo')} placeholder="EMP-XXX" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Role *</label>
-              <select className="input" value={form.role} onChange={f('role')}>
-                <option value="">Select…</option>
-                {ROLES.map(r => <option key={r} value={r}>{r.replace('_',' ')}</option>)}
-              </select>
+
+        {loading ? (
+          <div className="p-12 text-center text-slate-400">Loading options…</div>
+        ) : (
+          <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="label">First Name *</label><input className="input" value={form.firstName} onChange={f('firstName')} /></div>
+              <div><label className="label">Last Name *</label><input className="input" value={form.lastName} onChange={f('lastName')} /></div>
             </div>
-            <div>
-              <label className="label">Department *</label>
-              <select className="input" value={form.dept} onChange={f('dept')}>
-                <option value="">Select…</option>
-                {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Email Address *</label>
+                <input type="email" className="input" value={form.email} onChange={f('email')} placeholder="staff@biopassion.com" />
+              </div>
+              <div>
+                <label className="label">Login Password *</label>
+                <input type="text" className="input" value={form.password} onChange={f('password')} placeholder="Set a secure password" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="label">Phone</label><input className="input" value={form.phone} onChange={f('phone')} /></div>
+              <div><label className="label">Employee No.</label><input className="input" value={form.empNo} onChange={f('empNo')} placeholder="EMP-XXX" /></div>
+            </div>
+            
+            <hr className="border-slate-100 my-2" />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">System Role *</label>
+                <select className="input" value={form.roleId} onChange={f('roleId')}>
+                  <option value="">Select Role…</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name.replace('_',' ')}</option>)}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">Dictates what they can do & see in HMS.</p>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Department (Optional)</label>
+                  <select className="input" value={form.deptId} onChange={f('deptId')}>
+                    <option value="">No General Department</option>
+                    {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label flex justify-between">
+                    <span>Duty Station / Desk</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                  </label>
+                  <datalist id="duty-stations">
+                    {roles.find(r => r.id === form.roleId)?.name === 'doctor' && (
+                      <><option value="Room 1"/><option value="Room 2"/><option value="Room 3"/></>
+                    )}
+                    {roles.find(r => r.id === form.roleId)?.name === 'reception' && (
+                      <><option value="Front Desk 1"/><option value="Front Desk 2"/><option value="OPD Registration"/></>
+                    )}
+                    {roles.find(r => r.id === form.roleId)?.name === 'nurse' && (
+                      <><option value="General Ward"/><option value="Maternity Ward"/></>
+                    )}
+                    {roles.find(r => r.id === form.roleId)?.name === 'triage' && (
+                      <><option value="Triage Desk 1"/><option value="OPD Triage"/></>
+                    )}
+                    {roles.find(r => r.id === form.roleId)?.name === 'pharmacy' && (
+                      <><option value="Main Pharmacy"/><option value="Dispensary"/></>
+                    )}
+                    {roles.find(r => r.id === form.roleId)?.name === 'lab_staff' && (
+                      <><option value="Main Lab"/><option value="Sample Collection"/></>
+                    )}
+                    {roles.find(r => r.id === form.roleId)?.name === 'billing' && (
+                      <><option value="Cashier 1"/><option value="Cashier 2"/></>
+                    )}
+                    {roles.find(r => r.id === form.roleId)?.name === 'store_keeper' && (
+                      <><option value="Main Store"/></>
+                    )}
+                  </datalist>
+                  <input list="duty-stations" className="input" value={form.dutyStation} onChange={f('dutyStation')} placeholder="Select from list or type custom..." />
+                </div>
+              </div>
             </div>
           </div>
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-            ⚠️ Staff members must be invited via Supabase Auth to set their login password. Adding them here registers their profile.
-          </div>
-        </div>
+        )}
+
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary">
-            <Group sx={{ fontSize: 16 }} /> {saving ? 'Adding…' : 'Add Staff'}
+          <button onClick={handleSave} disabled={saving || loading} className="btn-primary">
+            <Group sx={{ fontSize: 16 }} /> {saving ? 'Creating Account…' : 'Create Staff Account'}
           </button>
         </div>
       </div>
@@ -87,6 +171,11 @@ export default function HR() {
   const [roleFilter, setRole]   = useState('all');
   const [deptFilter, setDept]   = useState('all');
   const [showAdd, setShowAdd]   = useState(false);
+  const [depts, setDepts]       = useState([]);
+
+  useEffect(() => {
+    hrService.getDepartments().then(setDepts).catch(console.error);
+  }, []);
 
   const loadStaff = useCallback(async () => {
     setLoading(true); setError(null);
@@ -156,7 +245,7 @@ export default function HR() {
         </div>
         <select value={deptFilter} onChange={e => setDept(e.target.value)} className="input sm:w-52">
           <option value="all">All Departments</option>
-          {DEPARTMENTS.map(d => <option key={d}>{d}</option>)}
+          {depts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select>
       </div>
 
@@ -189,7 +278,9 @@ export default function HR() {
               <div className="space-y-1.5 text-xs text-slate-600">
                 <div className="flex items-center gap-2">
                   <Badge sx={{ fontSize: 13 }} className="text-slate-400" />
-                  <span>{s.employee_no || '—'} · {dept}</span>
+                  <span>
+                    {s.employee_no || '—'} · {s.duty_station ? <span className="font-semibold text-primary-700">{s.duty_station}</span> : dept !== 'N/A' ? dept : 'No Station'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Email sx={{ fontSize: 13 }} className="text-slate-400" />
@@ -212,17 +303,14 @@ export default function HR() {
             <Group sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
             <p className="font-bold text-slate-500">
               {staff.length === 0
-                ? 'No staff profiles found. Users must be registered in Supabase Auth first.'
+                ? 'No staff profiles found. Use the Add Staff button to create new accounts.'
                 : 'No staff match your search or filter'}
             </p>
           </div>
         )}
       </div>
 
-      {showAdd && <AddStaffModal onClose={() => setShowAdd(false)} onSave={async (data) => {
-        // Optimistic: add to local list since we can't create auth users from client
-        setStaff(prev => [{ id: `local-${Date.now()}`, first_name: data.firstName, last_name: data.lastName, email: data.email, phone: data.phone, employee_no: data.empNo, departments: { name: data.dept }, user_roles: [{ roles: { name: data.role } }] }, ...prev]);
-      }} />}
+      {showAdd && <AddStaffModal onClose={() => setShowAdd(false)} onSave={loadStaff} />}
     </div>
   );
 }

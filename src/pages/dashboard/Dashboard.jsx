@@ -64,20 +64,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <section>
-        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-          {quickActions.map(({ label, to, icon: Icon, color }) => (
-            <button key={label} onClick={() => navigate(to)}
-              className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl font-semibold text-xs transition-all active:scale-95 shadow-sm ${color}`}>
-              <Icon sx={{ fontSize: 26 }} />
-              {label}
-            </button>
-          ))}
-        </div>
-      </section>
-
       {/* Two-column section */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Recent Patients */}
@@ -120,18 +106,6 @@ export default function Dashboard() {
               );
             })}
           </div>
-        </div>
-      </div>
-
-      {/* Alert banner */}
-      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-        <Warning className="text-amber-500 shrink-0 mt-0.5" sx={{ fontSize: 18 }} />
-        <div>
-          <p className="text-sm font-bold text-amber-800">System Notice</p>
-          <p className="text-xs text-amber-700 mt-0.5">
-            This is the initial installation of Biopassion HMS. Run the database migration script to fully activate all modules.
-            Backend integration with the API will be configured in Phase 2.
-          </p>
         </div>
       </div>
     </div>

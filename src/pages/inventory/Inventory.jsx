@@ -3,6 +3,7 @@ import {
   Inventory2, Search, Add, Warning, FileDownload,
   TrendingDown, CheckCircle, ArrowUpward, ArrowDownward
 } from '@mui/icons-material';
+import { useAuth } from '../../context/AuthContext';
 
 // ── Categories ───────────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -156,6 +157,7 @@ function IssueStockModal({ items, onClose, onSave }) {
 }
 
 export default function Inventory() {
+  const { user, role } = useAuth();
   const [items, setItems]           = useState(INITIAL_STOCK);
   const [transactions, setTxn]      = useState(MOCK_TXN);
   const [category, setCategory]     = useState('All');
@@ -180,14 +182,14 @@ export default function Inventory() {
     const item = items.find(i => i.id === form.itemId);
     if (!item) return;
     setItems(prev => prev.map(i => i.id === form.itemId ? { ...i, qty: i.qty + parseInt(form.qty || 0) } : i));
-    setTxn(prev => [{ id: `t${Date.now()}`, type: 'receive', item: item.name, qty: parseInt(form.qty), dept: '—', date: new Date().toISOString().slice(0, 10), by: 'You', cost: form.cost }, ...prev]);
+    setTxn(prev => [{ id: `t${Date.now()}`, type: 'receive', item: item.name, qty: parseInt(form.qty), dept: '—', date: new Date().toISOString().slice(0, 10), by: user?.first_name || 'System', cost: form.cost }, ...prev]);
   };
 
   const handleIssue = (form) => {
     const item = items.find(i => i.id === form.itemId);
     if (!item) return;
     setItems(prev => prev.map(i => i.id === form.itemId ? { ...i, qty: Math.max(0, i.qty - parseInt(form.qty || 0)) } : i));
-    setTxn(prev => [{ id: `t${Date.now()}`, type: 'dispense', item: item.name, qty: parseInt(form.qty), dept: form.dept, date: new Date().toISOString().slice(0, 10), by: 'You', cost: 0 }, ...prev]);
+    setTxn(prev => [{ id: `t${Date.now()}`, type: 'dispense', item: item.name, qty: parseInt(form.qty), dept: form.dept, date: new Date().toISOString().slice(0, 10), by: user?.first_name || 'System', cost: 0 }, ...prev]);
   };
 
   return (
@@ -199,12 +201,16 @@ export default function Inventory() {
           <p className="text-sm text-slate-500">Medical supplies, consumables & reagents</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowIssue(true)} className="btn-secondary shrink-0">
-            <ArrowDownward sx={{ fontSize: 16 }} /> Issue
-          </button>
-          <button onClick={() => setShowReceive(true)} className="btn-primary shrink-0">
-            <ArrowUpward sx={{ fontSize: 16 }} /> Receive Stock
-          </button>
+          {role !== 'admin' && (
+            <>
+              <button onClick={() => setShowIssue(true)} className="btn-secondary shrink-0">
+                <ArrowDownward sx={{ fontSize: 16 }} /> Issue
+              </button>
+              <button onClick={() => setShowReceive(true)} className="btn-primary shrink-0">
+                <ArrowUpward sx={{ fontSize: 16 }} /> Receive Stock
+              </button>
+            </>
+          )}
         </div>
       </div>
 

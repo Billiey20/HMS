@@ -5,3 +5,12 @@ dist-ssr
 .env.*
 *.local
 .DS_Store
+
+# Backend
+backend/node_modules
+backend/.env
+backend/dist
+
+# Logs
+*.log
+npm-debug.log*
