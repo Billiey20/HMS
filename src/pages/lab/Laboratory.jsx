@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Science, Refresh, Print, CheckCircle,
   Warning, HourglassEmpty, Search, Assignment,
-  Send, Cancel, FactCheck, MedicalServices
+  Send, Cancel, FactCheck, MedicalServices, ArrowForward
 } from '@mui/icons-material';
 import { labService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -20,8 +20,9 @@ function patientName(order) {
 
 function urgencyBadge(urgency) {
   const cfg = { routine: 'bg-slate-100 text-slate-600', urgent: 'bg-amber-100 text-amber-700', stat: 'bg-red-100 text-red-700 animate-pulse' };
-  return <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${cfg[urgency] || cfg.routine} uppercase tracking-wider`}>{urgency || 'Routine'}</span>;
+  return <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${cfg[urgency] || cfg.routine} capitalize tracking-wider`}>{urgency || 'Routine'}</span>;
 }
+
 
 
 
@@ -30,9 +31,9 @@ function ResultEntryModal({ item, onClose, onSave }) {
   const testName = item.test_name;
   const template = TEST_TEMPLATES[testName] || [];
   let initial = {};
-  try { initial = item.result ? JSON.parse(item.result) : {}; } catch {}
+  try { initial = item.result ? JSON.parse(item.result) : {}; } catch { }
   const [results, setResults] = useState(initial);
-  const [saving, setSaving]   = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const setField = (name, val) => setResults(prev => ({ ...prev, [name]: val }));
 
@@ -64,13 +65,13 @@ function ResultEntryModal({ item, onClose, onSave }) {
               <thead className="bg-slate-50">
                 <tr>
                   {['Parameter', 'Result', 'Unit', 'Flag', 'Reference'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
+                    <th key={h} className="px-3 py-2 text-left text-xs font-bold text-slate-500 capitalize tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {template.map(row => {
-                  const val  = results[row.name] || '';
+                  const val = results[row.name] || '';
                   const flag = computeFlag(val, row);
                   const isAbn = flag === 'H' || flag === 'L';
                   return (
@@ -177,7 +178,7 @@ function RejectModal({ item, onClose, onReject }) {
 
 // ── TABLE HEADER ROW ──────────────────────────────────────────────────────────
 function TH({ children, className = '' }) {
-  return <th className={`px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-widest text-left whitespace-nowrap ${className}`}>{children}</th>;
+  return <th className={`px-4 py-3 text-[11px] font-bold text-slate-500 capitalize tracking-widest text-left whitespace-nowrap ${className}`}>{children}</th>;
 }
 function TD({ children, className = '' }) {
   return <td className={`px-4 py-4 ${className}`}>{children}</td>;
@@ -185,26 +186,26 @@ function TD({ children, className = '' }) {
 
 // ── MAIN LABORATORY PAGE ──────────────────────────────────────────────────────
 const STAGES = [
-  { key: 'requests',   label: 'Lab Requests',      icon: <Assignment sx={{ fontSize: 16 }} /> },
-  { key: 'sample',     label: 'Sample Collection',  icon: <MedicalServices sx={{ fontSize: 16 }} /> },
-  { key: 'results',    label: 'Results',            icon: <Science sx={{ fontSize: 16 }} /> },
-  { key: 'validation', label: 'Validation',         icon: <FactCheck sx={{ fontSize: 16 }} /> },
-  { key: 'posted',     label: 'Posted',             icon: <Send sx={{ fontSize: 16 }} /> },
+  { key: 'requests', label: 'Lab Requests', icon: <Assignment sx={{ fontSize: 16 }} /> },
+  { key: 'sample', label: 'Sample Collection', icon: <MedicalServices sx={{ fontSize: 16 }} /> },
+  { key: 'results', label: 'Results', icon: <Science sx={{ fontSize: 16 }} /> },
+  { key: 'validation', label: 'Validation', icon: <FactCheck sx={{ fontSize: 16 }} /> },
+  { key: 'posted', label: 'Posted', icon: <Send sx={{ fontSize: 16 }} /> },
 ];
 
 export default function Laboratory() {
   const { user } = useAuth();
   const [stage, setStage] = useState('requests');
-  const [orders,  setOrders]  = useState([]);
-  const [items,   setItems]   = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(null);
-  const [search,  setSearch]  = useState('');
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
 
   // Modals
   const [enteringResult, setEnteringResult] = useState(null);
-  const [rejectingItem,  setRejectingItem]  = useState(null);
-  const [previewItem,    setPreviewItem]    = useState(null);
+  const [rejectingItem, setRejectingItem] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true); setError(null);
@@ -225,18 +226,18 @@ export default function Laboratory() {
   useEffect(() => { loadAll(); }, [loadAll]);
 
   // ── Derived data per stage ────────────────────────────────────────────────
-  const pendingOrders   = orders.filter(o => o.status === 'pending');
-  const sampleItems     = items.filter(i => i.sample_status === 'pending' && i.lab_orders?.status === 'processing');
-  const resultsItems    = items.filter(i => i.sample_status === 'collected' && !i.result && i.status !== 'cancelled');
+  const pendingOrders = orders.filter(o => o.status === 'pending');
+  const sampleItems = items.filter(i => i.sample_status === 'pending' && i.lab_orders?.status === 'processing');
+  const resultsItems = items.filter(i => i.sample_status === 'collected' && !i.result && i.status !== 'cancelled');
   const validationItems = items.filter(i => i.sample_status === 'collected' && i.result && i.status !== 'completed' && !i.posted_at);
-  const postedItems     = items.filter(i => i.posted_at);
+  const postedItems = items.filter(i => i.posted_at);
 
   const counts = {
-    requests:   pendingOrders.length,
-    sample:     sampleItems.length,
-    results:    resultsItems.length,
+    requests: pendingOrders.length,
+    sample: sampleItems.length,
+    results: resultsItems.length,
     validation: validationItems.length,
-    posted:     postedItems.length,
+    posted: postedItems.length,
   };
 
   // ── Search filter helpers ─────────────────────────────────────────────────
@@ -244,7 +245,7 @@ export default function Laboratory() {
     if (!search) return true;
     const p = orderObj?.patients;
     const name = `${p?.first_name || ''} ${p?.last_name || ''}`.toLowerCase();
-    const no   = (p?.patient_no || '').toLowerCase();
+    const no = (p?.patient_no || '').toLowerCase();
     return name.includes(search.toLowerCase()) || no.includes(search.toLowerCase());
   };
   const matchesItemSearch = (item) => matchesSearch(item.lab_orders);
@@ -307,32 +308,44 @@ export default function Laboratory() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Laboratory</h1>
-          <p className="text-sm text-slate-500">5-stage test workflow: Request → Sample → Results → Validation → Posted</p>
         </div>
         <button onClick={loadAll} className="btn-secondary shrink-0 group">
           <Refresh sx={{ fontSize: 18 }} className="group-hover:rotate-180 transition-transform duration-500" /> Refresh
         </button>
       </div>
 
-      {/* Pipeline Progress Bar */}
-      <div className="card p-4 border border-slate-200">
-        <div className="flex items-center gap-0">
+      {/* Pipeline Progress — Ultra-Slim Horizontal Stage Cards */}
+      <div className="py-2 select-none">
+        <div className="flex items-center justify-between gap-2 max-w-6xl mx-auto overflow-x-auto pt-3 pb-2 scrollbar-hide">
           {STAGES.map((s, idx) => (
             <React.Fragment key={s.key}>
               <button
                 onClick={() => setStage(s.key)}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl transition-all border-2
+                className={`flex-1 min-w-[180px] flex items-center gap-3 px-4 py-1.5 rounded-xl transition-all border-2 group
                   ${stage === s.key
-                    ? 'bg-primary-600 border-primary-600 text-white shadow-md'
-                    : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'}`}>
-                <span className="text-lg">{s.icon}</span>
-                <span className="text-[11px] font-bold text-center leading-tight">{s.label}</span>
-                <span className={`text-lg font-black ${stage === s.key ? 'text-white' : counts[s.key] > 0 ? 'text-primary-600' : 'text-slate-300'}`}>
-                  {counts[s.key]}
+                    ? 'bg-white border-primary-600 shadow-md shadow-primary-50 -translate-y-0.5'
+                    : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'}`}>
+
+                <div className={`shrink-0 transition-all ${stage === s.key ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                  {React.cloneElement(s.icon, { sx: { fontSize: 18 } })}
+                </div>
+
+                <span className={`text-[11px] font-black uppercase tracking-tight truncate flex-1 text-left ${stage === s.key ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {s.label}
                 </span>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className={`text-xs font-black ${stage === s.key ? 'text-primary-600' : counts[s.key] > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                    {counts[s.key]}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">tests</span>
+                </div>
               </button>
+
               {idx < STAGES.length - 1 && (
-                <div className={`h-0.5 w-4 shrink-0 ${counts[STAGES[idx+1].key] > 0 || stage === STAGES[idx+1].key ? 'bg-primary-300' : 'bg-slate-200'}`} />
+                <div className="text-slate-200 shrink-0 px-1">
+                  <ArrowForward sx={{ fontSize: 12 }} className={counts[STAGES[idx + 1].key] > 0 ? 'text-primary-100' : ''} />
+                </div>
               )}
             </React.Fragment>
           ))}
@@ -370,7 +383,7 @@ export default function Laboratory() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[700px]">
                   <thead className="bg-slate-50 border-b border-slate-100">
-                    <tr><TH>Patient</TH><TH>Patient No.</TH><TH>Tests Ordered</TH><TH>Priority</TH><TH>Requested</TH><TH className="text-right">Action</TH></tr>
+                    <tr><TH>Patient</TH><TH>Patient No.</TH><TH>Ordered tests</TH><TH>Priority</TH><TH>Requested</TH><TH className="text-right">Action</TH></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {pendingOrders.filter(matchesSearch).map(order => (
@@ -479,7 +492,7 @@ export default function Laboratory() {
                         <TD><span className="font-mono text-xs text-slate-500">{item.lab_orders?.patients?.patient_no}</span></TD>
                         <TD>
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[11px] font-bold">
-                            <HourglassEmpty sx={{ fontSize: 12 }} /> Awaiting Results
+                            <HourglassEmpty sx={{ fontSize: 12 }} /> Awaiting results
                           </span>
                         </TD>
                         <TD className="text-right">
@@ -520,7 +533,7 @@ export default function Laboratory() {
                   <tbody className="divide-y divide-slate-50">
                     {validationItems.filter(matchesItemSearch).map(item => {
                       let parsed = {};
-                      try { parsed = item.result ? JSON.parse(item.result) : {}; } catch {}
+                      try { parsed = item.result ? JSON.parse(item.result) : {}; } catch { }
                       const hasFreeText = parsed.__freetext;
                       const keys = Object.keys(parsed).filter(k => k !== '__freetext');
                       return (
@@ -537,7 +550,7 @@ export default function Laboratory() {
                           </TD>
                           <TD>
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[11px] font-bold">
-                              Results Entered
+                              Results entered
                             </span>
                           </TD>
                           <TD className="text-right">
@@ -640,9 +653,9 @@ export default function Laboratory() {
       </div>
 
       {/* Modals */}
-      {rejectingItem  && <RejectModal item={rejectingItem}  onClose={() => setRejectingItem(null)}  onReject={handleRejectSample} />}
+      {rejectingItem && <RejectModal item={rejectingItem} onClose={() => setRejectingItem(null)} onReject={handleRejectSample} />}
       {enteringResult && <ResultEntryModal item={enteringResult} onClose={() => setEnteringResult(null)} onSave={handleSaveResult} />}
-      {previewItem    && <LabReportPreview item={previewItem}    onClose={() => setPreviewItem(null)} />}
+      {previewItem && <LabReportPreview item={previewItem} onClose={() => setPreviewItem(null)} />}
     </div>
   );
 }

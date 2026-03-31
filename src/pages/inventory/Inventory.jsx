@@ -299,19 +299,19 @@ export default function Inventory() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card p-4 text-center border-slate-200">
           <p className="text-3xl font-black text-slate-800">{items.length}</p>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Catalog Items</p>
+          <p className="text-xs font-bold text-slate-500 capitalize tracking-wide">Catalog items</p>
         </div>
         <div className="card p-4 text-center border-red-100 bg-red-50">
           <p className="text-3xl font-black text-red-700">{lowStock.length}</p>
-          <p className="text-xs font-bold text-red-500 uppercase tracking-wide">Below Reorder</p>
+          <p className="text-xs font-bold text-red-500 capitalize tracking-wide">Below reorder</p>
         </div>
         <div className="card p-4 text-center border-emerald-100 bg-emerald-50">
           <p className="text-3xl font-black text-emerald-700">{items.filter(i => i.current_qty >= i.reorder_level).length}</p>
-          <p className="text-xs font-bold text-emerald-500 uppercase tracking-wide">Adequately Stocked</p>
+          <p className="text-xs font-bold text-emerald-500 capitalize tracking-wide">Adequately stocked</p>
         </div>
         <div className="card p-4 text-center border-blue-100 bg-blue-50">
           <p className="text-3xl font-black text-blue-700">{transactions.length}</p>
-          <p className="text-xs font-bold text-blue-500 uppercase tracking-wide">Recent Txn</p>
+          <p className="text-xs font-bold text-blue-500 capitalize tracking-wide">Recent txn</p>
         </div>
       </div>
 
@@ -360,11 +360,11 @@ export default function Inventory() {
                   <table className="w-full text-sm text-left min-w-[750px]">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Item Name</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Category</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Live Stock</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Reorder Level</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">Status</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Item name</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Category</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Live stock</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Reorder level</th>
+                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -414,8 +414,8 @@ export default function Inventory() {
             <table className="w-full text-sm text-left min-w-[700px]">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  {['Type', 'Item', 'Qty', 'Notes/Batch', 'Date', 'Cost (KES)'].map(h => (
-                    <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
+                  {['Type', 'Item', 'Qty', 'Notes/Batch', 'Date', 'Cost (KSh.)'].map(h => (
+                    <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>

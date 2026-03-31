@@ -6,8 +6,8 @@ export const opdService = {
     const today = new Date().toISOString().slice(0, 10);
     const { data, error } = await supabase
       .from('opd_visits')
-      .select('*, patients(*)')
-      .eq('visit_date', today);
+      .select('*, patients(*), admissions(id, status, wards(name))')
+      .or(`visit_date.eq.${today},status.eq.waiting_doctor,status.eq.waiting_lab`);
       
     if (error) throw error;
 
@@ -33,7 +33,11 @@ export const opdService = {
       height_cm: v.height_cm,
       blood_glucose: v.blood_glucose,
       status: v.status,
-      queue_no: i + 1
+      queue_no: i + 1,
+      admission: v.admissions?.find(a => a.status === 'active') ? {
+        id: v.admissions.find(a => a.status === 'active').id,
+        ward: v.admissions.find(a => a.status === 'active').wards?.name || 'Inpatient'
+      } : null
     }));
   },
 
@@ -59,6 +63,17 @@ export const opdService = {
     const { data, error } = await supabase.from('opd_visits').update(payload).eq('id', id).select().single();
     if (error) throw error;
     return data;
+  },
+
+  async getFollowUps() {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from('consultations')
+      .select('*, patients(*)')
+      .gte('follow_up_date', today)
+      .order('follow_up_date', { ascending: true });
+    if (error) throw error;
+    return data || [];
   },
 
   async todayCount() {

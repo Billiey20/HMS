@@ -58,14 +58,14 @@ export default function PatientHistoryModal({ patient, onClose }) {
             id: c.id, type: 'consultation', time: c.created_at, title: 'Consultation',
             data: c
           });
+        });
 
-          // Prescriptions: Match from the top-level data.prescriptions array
-          const vPrescriptions = (data.prescriptions || []).filter(rx => rx.consultation_id === c.id || rx.visit_id === v.id);
-          vPrescriptions.forEach(rx => {
-            events.push({
-              id: rx.id, type: 'pharmacy', time: rx.prescribed_at, title: 'Prescription Added',
-              data: rx
-            });
+        // Prescriptions: Map to the visit level instead of nesting
+        const vPrescriptions = (data.prescriptions || []).filter(rx => rx.visit_id === v.id);
+        vPrescriptions.forEach(rx => {
+          events.push({
+            id: rx.id, type: 'pharmacy', time: rx.prescribed_at || rx.created_at, title: 'Prescription Added',
+            data: rx
           });
         });
 
@@ -85,6 +85,17 @@ export default function PatientHistoryModal({ patient, onClose }) {
              data: b
           });
         });
+
+        // Admission Recommendation (Status based)
+        if (v.status === 'awaiting_admission') {
+          events.push({
+            id: `${v.id}-adm-req`, 
+            type: 'admission', 
+            time: v.updated_at || v.created_at, 
+            title: 'Recommended for Admission',
+            data: { isRecommendation: true, info: v.presenting_complaint }
+          });
+        }
 
         builtEncounters.push({
           id: v.id,
@@ -239,6 +250,17 @@ export default function PatientHistoryModal({ patient, onClose }) {
      }
 
      if (type === 'admission') {
+        if (data.isRecommendation) {
+           return (
+              <div className="bg-rose-50/50 p-4 rounded-xl text-sm border border-rose-100">
+                 <p className="text-rose-500 text-xs uppercase font-bold tracking-wider mb-2">Admission Request</p>
+                 <p className="font-bold text-slate-800">Status: Awaiting Bed Assignment</p>
+                 {data.info && data.info.includes('[ADM REQ:') && (
+                    <p className="mt-2 text-slate-600 italic">Target Ward: {data.info.split('[ADM REQ:')[1].replace(']', '').trim()}</p>
+                 )}
+              </div>
+           );
+        }
         return (
            <div className="bg-amber-50/50 p-4 rounded-xl text-sm border border-amber-100">
               <p className="text-amber-500 text-xs uppercase font-bold tracking-wider mb-2">Admission Details</p>

@@ -38,8 +38,26 @@ export const consultationService = {
     return data;
   },
 
-  async createPrescription(prescriptionPayload, items) {
-    const { data: rx, error } = await supabase.from('prescriptions').insert([prescriptionPayload]).select().single();
+  async getPastConsultation(patientId, currentVisitId) {
+    const { data, error } = await supabase
+      .from('consultations')
+      .select('*')
+      .eq('patient_id', patientId)
+      .neq('visit_id', currentVisitId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async createPrescription(payload, items) {
+    const rxRecord = {
+      ...payload,
+      prescribed_at: new Date().toISOString(),
+      status: payload.status || 'pending'
+    };
+    const { data: rx, error } = await supabase.from('prescriptions').insert([rxRecord]).select().single();
     if (error) throw error;
     if (items?.length) {
       const { error: itemErr } = await supabase.from('prescription_items').insert(
@@ -49,7 +67,8 @@ export const consultationService = {
       
       try {
         for (const i of items) {
-          await billingService.appendCharge(prescriptionPayload.patient_id, prescriptionPayload.consultation_id, `Drug: ${i.drug_name}`, 'Pharmacy', 200, i.quantity || 1, prescriptionPayload.prescribed_by);
+          // Fix: pass payload.visit_id instead of consultation_id tag
+          await billingService.appendCharge(payload.patient_id, payload.visit_id, `Drug: ${i.drug_name}`, 'Pharmacy', 200, i.quantity || 1, payload.prescribed_by);
         }
       } catch (e) {
         console.error('Failed to append pharmacy charges:', e);

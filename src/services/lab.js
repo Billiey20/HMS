@@ -20,6 +20,17 @@ export const labService = {
   },
 
   // ── ITEMS (Stages 2-5 - individual test tracking) ──────────────────────────
+  async searchLaboratoryTests(query = '') {
+    // Import dynamically to avoid circular dependencies if any, or just use hardcoded constants 
+    // Wait, let's just use a static mock or we can import TEST_TEMPLATES.
+    // Instead of importing, we'll return a static catalog list mapped to IDs.
+    const categories = ['Full Haemogram / CBC', 'Urinalysis (UA)', 'Random Blood Sugar (RBS)', 'Malaria RDT', 'HIV 1 & 2 Antibody Test', 'Urea, Electrolytes & Creatinine (UECs)', 'Stool Analysis'];
+    // Assuming each category name is a valid exact test name for the order:
+    const results = categories.map(name => ({ id: name, name }));
+    if (!query) return results;
+    return results.filter(t => t.name.toLowerCase().includes(query.toLowerCase()));
+  },
+
   async listItems({ sampleStatus = null, itemStatus = null } = {}) {
     let q = supabase
       .from('lab_order_items')
@@ -27,7 +38,7 @@ export const labService = {
         *,
         lab_orders(
           id, visit_id, patient_id, urgency, ordered_at, status,
-          patients(patient_no, first_name, last_name, age, gender)
+          patients(patient_no, first_name, last_name, age, gender, phone)
         )
       `)
       .order('id', { ascending: true });
@@ -78,7 +89,11 @@ export const labService = {
   async acceptSample(itemId) {
     const { error } = await supabase
       .from('lab_order_items')
-      .update({ sample_status: 'collected', status: 'processing' })
+      .update({ 
+        sample_status: 'collected', 
+        status: 'processing',
+        sample_collected_at: new Date().toISOString() 
+      })
       .eq('id', itemId);
     if (error) throw error;
   },

@@ -4,6 +4,7 @@ import {
 } from '@mui/icons-material';
 import { billingService, patientService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import OfficialReceiptModal from '../../components/modals/OfficialReceiptModal';
 
 const SERVICE_CATEGORIES = {
   consultation: { label: 'Consultation',  color: 'bg-blue-100 text-blue-700'    },
@@ -35,7 +36,15 @@ const PRICE_LIST = [
   { name: 'NS 500ml IV Bag',             category: 'pharmacy',    price: 120   },
 ];
 
-const STATUS_BADGE = { pending:'badge-amber', partial:'badge-blue', paid:'badge-green', waived:'badge-slate', insurance:'badge-violet' };
+const STATUS_TEXT_COLOR = { 
+  all:       'text-slate-500',
+  pending:   'text-amber-600', 
+  partial:   'text-blue-600', 
+  paid:      'text-emerald-600', 
+  waived:    'text-slate-500', 
+  insurance: 'text-violet-600' 
+};
+
 
 function BillItemsTable({ items }) {
   const billItems = items?.bill_items || [];
@@ -43,7 +52,7 @@ function BillItemsTable({ items }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs min-w-[500px]">
-        <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide">
+        <thead className="bg-slate-50 text-slate-500 capitalize tracking-wide">
           <tr>
             {['Service / Item', 'Category', 'Qty', 'Unit Price', 'Total'].map(h => (
               <th key={h} className="px-3 py-2 text-left font-bold">{h}</th>
@@ -58,8 +67,12 @@ function BillItemsTable({ items }) {
                 <td className="px-3 py-2 font-semibold text-slate-800">{item.description}</td>
                 <td className="px-3 py-2"><span className={`badge text-xs ${cat?.color || 'badge-slate'}`}>{cat?.label || item.category}</span></td>
                 <td className="px-3 py-2 text-slate-600">{item.quantity}</td>
-                <td className="px-3 py-2 font-mono text-slate-700">KES {parseFloat(item.unit_price).toLocaleString()}</td>
-                <td className="px-3 py-2 font-mono font-bold text-slate-800">KES {parseFloat(item.total_price).toLocaleString()}</td>
+                <td className="px-3 py-2 font-mono text-slate-700">
+                  <span className="text-[10px] font-bold text-slate-900 mr-0.5">KSh.</span> {parseFloat(item.unit_price).toLocaleString()}
+                </td>
+                <td className="px-3 py-2 font-mono font-bold text-slate-800">
+                  <span className="text-[10px] font-bold text-slate-900 mr-0.5">KSh.</span> {parseFloat(item.total_price).toLocaleString()}
+                </td>
               </tr>
             );
           })}
@@ -67,7 +80,9 @@ function BillItemsTable({ items }) {
         <tfoot className="border-t-2 border-slate-300">
           <tr className="bg-primary-50">
             <td colSpan={4} className="px-3 py-2 font-black text-primary-700 text-right">TOTAL</td>
-            <td className="px-3 py-2 font-black text-primary-700 font-mono text-sm">KES {total.toLocaleString()}</td>
+            <td className="px-3 py-2 font-black text-primary-700 font-mono text-sm">
+              <span className="text-[10px] font-bold text-slate-900 mr-0.5">KSh.</span> {total.toLocaleString()}
+            </td>
           </tr>
         </tfoot>
       </table>
@@ -92,20 +107,20 @@ function PaymentModal({ bill, onClose, onPay }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200">
-        <div className="flex justify-between items-center px-6 py-4 bg-emerald-600 rounded-t-2xl">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 my-auto">
+        <div className="flex justify-between items-center px-6 py-4 bg-emerald-600 rounded-t-2xl shrink-0">
           <div>
             <h2 className="font-black text-white">Record Payment</h2>
-            <p className="text-emerald-100 text-xs">{bill.bill_no} · {bill.patients?.first_name} {bill.patients?.last_name}</p>
+            <p className="text-emerald-100 text-[10px] uppercase font-bold tracking-widest">{bill.bill_no} · {bill.patients?.first_name} {bill.patients?.last_name}</p>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold">×</button>
+          <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold transition-colors">×</button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
-            <div className="flex justify-between text-sm"><span className="text-emerald-700">Total Bill</span><span className="font-black text-emerald-700">KES {total.toLocaleString()}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-slate-600">Already Paid</span><span className="font-bold text-slate-700">KES {paid.toLocaleString()}</span></div>
-            <div className="flex justify-between text-sm border-t border-emerald-200 pt-1"><span className="font-bold text-emerald-800">Balance Due</span><span className="font-black text-emerald-800">KES {balance.toLocaleString()}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-emerald-700">Total Bill</span><span className="font-black text-emerald-700"><span className="text-[10px] mr-0.5">KSh.</span> {total.toLocaleString()}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-slate-600">Already Paid</span><span className="font-bold text-slate-700"><span className="text-[10px] mr-1">KSh.</span> {paid.toLocaleString()}</span></div>
+            <div className="flex justify-between text-sm border-t border-emerald-200 pt-1"><span className="font-bold text-emerald-800">Balance Due</span><span className="font-black text-emerald-800"><span className="text-[10px] mr-1">KSh.</span> {balance.toLocaleString()}</span></div>
           </div>
           <div>
             <label className="label">Payment Method *</label>
@@ -120,7 +135,7 @@ function PaymentModal({ bill, onClose, onPay }) {
             </div>
           </div>
           <div>
-            <label className="label">Amount Paid (KES) *</label>
+            <label className="label">Amount Paid (KSh.) *</label>
             <input type="number" className="input" value={amount} onChange={e => setAmount(parseFloat(e.target.value))} />
           </div>
           {(method === 'M-Pesa' || method === 'Insurance' || method === 'Card (POS)') && (
@@ -226,13 +241,13 @@ function NewBillModal({ onClose, onSave }) {
                 const catCfg = SERVICE_CATEGORIES[cat];
                 return (
                   <div key={cat}>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">{catCfg?.label}</p>
+                    <p className="text-xs font-bold text-slate-500 capitalize tracking-wide mb-1.5">{catCfg?.label}</p>
                     <div className="flex flex-wrap gap-2">
                       {svcs.map(svc => (
                         <button key={svc.name} onClick={() => addService(svc)}
                           className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all
                             ${selectedItems.find(i => i.desc === svc.name) ? `${catCfg?.color} border-transparent` : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-                          {svc.name} <span className="font-mono opacity-70">KES {svc.price.toLocaleString()}</span>
+                          {svc.name} <span className="font-mono opacity-70">KSh. {svc.price.toLocaleString()}</span>
                         </button>
                       ))}
                     </div>
@@ -256,13 +271,17 @@ function NewBillModal({ onClose, onSave }) {
                     <button onClick={() => setItems(p => p.map(i => i.desc === item.desc ? { ...i, qty: i.qty + 1 } : i))}
                       className="w-6 h-6 rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50 flex items-center justify-center text-sm font-bold">+</button>
                   </div>
-                  <span className="font-mono text-sm text-slate-700 w-28 text-right">KES {(item.qty * item.unitPrice).toLocaleString()}</span>
+                  <span className="font-mono text-sm text-slate-700 w-28 text-right">
+                    <span className="text-[10px] mr-1">KSh.</span> {(item.qty * item.unitPrice).toLocaleString()}
+                  </span>
                   <button onClick={() => setItems(p => p.filter(i => i.desc !== item.desc))} className="text-red-400 hover:text-red-600 font-bold">×</button>
                 </div>
               ))}
               <div className="flex justify-between items-center px-4 py-3 bg-primary-50 border-t border-primary-100">
                 <span className="font-black text-primary-800">TOTAL</span>
-                <span className="font-black text-primary-700 font-mono text-lg">KES {total.toLocaleString()}</span>
+                <span className="font-black text-primary-700 font-mono text-lg">
+                  <span className="text-xs mr-1 text-slate-900">KSh.</span> {total.toLocaleString()}
+                </span>
               </div>
             </div>
           )}
@@ -288,6 +307,7 @@ export default function Billing() {
   const [paying, setPaying]       = useState(null);
   const [creating, setCreating]   = useState(false);
   const [expanded, setExpanded]   = useState(null);
+  const [viewingReceipt, setViewingReceipt] = useState(null);
 
   const loadBills = useCallback(async () => {
     setLoading(true); setError(null);
@@ -330,8 +350,8 @@ export default function Billing() {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Billing</h1>
-          <p className="text-sm text-slate-500">Invoicing, payments & revenue tracking</p>
+          <h1 className="text-2xl font-black text-primary-600">Billing</h1>
+          <p className="text-sm text-slate-500 font-medium">Invoicing, payments & revenue tracking</p>
         </div>
         <div className="flex gap-2">
           <button onClick={loadBills} className="btn-secondary shrink-0"><Refresh sx={{ fontSize: 16 }} /> Refresh</button>
@@ -341,34 +361,43 @@ export default function Billing() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card p-4 text-center border-emerald-100 bg-emerald-50 col-span-2">
-          <p className="text-3xl font-black text-emerald-700">KES {totalRevenue.toLocaleString()}</p>
-          <p className="text-xs font-bold text-emerald-500 uppercase tracking-wide">Revenue Collected</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-2 border-b border-slate-100">
+        <div className="p-1 col-span-2">
+           <p className="text-sm font-bold text-slate-900 capitalize leading-none mb-1">Revenue collected</p>
+           <p className="text-3xl font-black text-emerald-700 tracking-tighter">
+             <span className="text-sm font-bold text-slate-900 mr-1 align-baseline">KSh.</span>
+             {totalRevenue.toLocaleString()}
+           </p>
         </div>
-        <div className="card p-4 text-center border-amber-100 bg-amber-50">
-          <p className="text-2xl font-black text-amber-700">KES {totalPending.toLocaleString()}</p>
-          <p className="text-xs font-bold text-amber-500 uppercase tracking-wide">Pending Payment</p>
+        <div className="p-1">
+           <p className="text-sm font-bold text-slate-900 capitalize leading-none mb-1">Pending payment</p>
+           <p className="text-2xl font-black text-amber-700 tracking-tighter">
+             <span className="text-xs font-bold text-slate-900 mr-1 align-baseline">KSh.</span>
+             {totalPending.toLocaleString()}
+           </p>
         </div>
-        <div className="card p-4 text-center border-blue-100 bg-blue-50">
-          <p className="text-2xl font-black text-blue-700">{bills.length}</p>
-          <p className="text-xs font-bold text-blue-500 uppercase tracking-wide">Total Invoices</p>
+        <div className="p-1">
+           <p className="text-sm font-bold text-slate-900 capitalize leading-none mb-1">Total invoices</p>
+           <p className="text-2xl font-black text-blue-700 tracking-tighter">{bills.length}</p>
         </div>
       </div>
 
       {error && <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-semibold">⚠️ {error}</div>}
 
-      <div className="card p-3 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 items-center py-2">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search patient or invoice no…" className="input pl-9" />
+            placeholder="Search patient or invoice no…" 
+            className="input pl-9 bg-transparent border-slate-200 focus:bg-white" />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap">
           {['all','pending','partial','paid','waived'].map(s => (
             <button key={s} onClick={() => setStatus(s)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all capitalize
-                ${statusFilter === s ? 'bg-primary-600 text-white border-transparent' : 'bg-white border-slate-200 text-slate-600'}`}>
+              className={`px-4 py-2 text-[12px] font-black capitalize tracking-widest transition-all
+                ${statusFilter === s 
+                  ? 'text-primary-700 border-b-4 border-primary-600 bg-primary-50/30' 
+                  : 'text-slate-400 hover:text-slate-600 border-b-4 border-transparent hover:border-slate-100 opacity-70 hover:opacity-100'}`}>
               {s}
             </button>
           ))}
@@ -389,14 +418,19 @@ export default function Billing() {
                     <h3 className="font-black text-slate-800">
                       {bill.patients?.first_name} {bill.patients?.last_name}
                     </h3>
-                    <span className={`badge ${STATUS_BADGE[bill.status] || 'badge-slate'}`}>{bill.status}</span>
+                    <span className={`text-[10px] font-black capitalize tracking-widest ${STATUS_TEXT_COLOR[bill.status] || 'text-slate-400'}`}>
+                      {bill.status}
+                    </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {bill.patients?.patient_no} · {new Date(bill.created_at).toLocaleDateString('en-GB')} · {bill.bill_items?.length || 0} items
                   </p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-black text-slate-800 font-mono">KES {total.toLocaleString()}</span>
+                 <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-black text-slate-800 font-mono">
+                    <span className="text-[10px] font-bold text-slate-900 mr-1">KSh.</span>
+                    {total.toLocaleString()}
+                  </span>
                   <button onClick={() => setExpanded(isOpen ? null : bill.id)}
                     className="btn-secondary text-xs py-1.5 px-3">{isOpen ? 'Hide' : 'Details'}</button>
                   {bill.status !== 'paid' && bill.status !== 'waived' && (
@@ -405,7 +439,8 @@ export default function Billing() {
                     </button>
                   )}
                   {bill.status === 'paid' && (
-                    <button className="btn-secondary text-xs py-1.5 px-3 text-emerald-600">
+                    <button onClick={() => setViewingReceipt(bill)} 
+                      className="btn-secondary text-xs py-1.5 px-3 text-emerald-600 hover:bg-emerald-50 border-emerald-100">
                       <Print sx={{ fontSize: 14 }} /> Receipt
                     </button>
                   )}
@@ -431,6 +466,7 @@ export default function Billing() {
 
       {paying   && <PaymentModal bill={paying} onClose={() => setPaying(null)} onPay={handlePay} />}
       {creating && <NewBillModal onClose={() => setCreating(false)} onSave={handleCreate} />}
+      {viewingReceipt && <OfficialReceiptModal bill={viewingReceipt} onClose={() => setViewingReceipt(null)} />}
     </div>
   );
 }

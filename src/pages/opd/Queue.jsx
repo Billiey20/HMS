@@ -16,19 +16,25 @@ const priorityStyle = {
 
 export default function OPDQueue() {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('ready'); // 'ready' (waiting_doctor) or 'lab' (waiting_lab)
+  const [activeTab, setActiveTab] = useState('ready');
+  const [followUps, setFollowUps] = useState([]);
+
 
   const loadQueue = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await opdService.getQueue();
-      setQueue(data || []);
+      const [queueData, followUpData] = await Promise.all([
+        opdService.getQueue(),
+        opdService.getFollowUps()
+      ]);
+      setQueue(queueData || []);
+      setFollowUps(followUpData || []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -56,6 +62,7 @@ export default function OPDQueue() {
   const counts = {
     ready: queue.filter(q => q.status === 'waiting_doctor').length,
     lab: queue.filter(q => q.status === 'waiting_lab').length,
+    followups: followUps.length,
     all:       filteredQueue.length,
     emergency: filteredQueue.filter(q => (q.triage_priority || 'normal') === 'emergency').length,
     urgent:    filteredQueue.filter(q => (q.triage_priority || 'normal') === 'urgent').length,
@@ -111,6 +118,7 @@ export default function OPDQueue() {
         {[
           { key: 'ready', label: 'Waiting for Clinician', count: counts.ready },
           { key: 'lab',   label: 'Awaiting Results',      count: counts.lab },
+          { key: 'followups', label: 'Scheduled Follow-ups', count: counts.followups },
         ].map(({ key, label, count }) => (
           <button key={key}
             onClick={() => { setActiveTab(key); setFilter('all'); }}
@@ -140,12 +148,63 @@ export default function OPDQueue() {
 
       <div className="card overflow-hidden border border-slate-200">
         <div className="overflow-x-auto">
+          {activeTab === 'followups' ? (
+            <table className="w-full text-sm text-left align-middle min-w-[800px]">
+              <thead className="bg-slate-50/50 border-b border-slate-100">
+                <tr>
+                  <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Patient ID</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Patient Details</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Scheduled Date</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Follow-up Notes / Reason</th>
+                  <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {followUps.map(f => (
+                  <tr key={f.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="px-5 py-4 font-mono text-sm tracking-tight text-slate-500 font-semibold">{f.patients?.patient_no}</td>
+                    <td className="px-5 py-4">
+                      <div className="font-black text-base text-slate-800 mb-1 leading-tight">{f.patients?.first_name} {f.patients?.last_name}</div>
+                    </td>
+                    <td className="px-5 py-4 font-bold text-emerald-600">{new Date(f.follow_up_date).toLocaleDateString('en-GB')}</td>
+                    <td className="px-5 py-4 text-sm text-slate-600 italic">"{f.follow_up_notes || 'Routine checkup'}"</td>
+                    <td className="px-5 py-4 text-right">
+                      {role !== 'admin' && (
+                        <button onClick={() => startConsultation({
+                           visit_id: null, // New visit
+                           patient_id: f.patient_id,
+                           patient_no: f.patients?.patient_no,
+                           patient_name: `${f.patients?.first_name} ${f.patients?.last_name}`,
+                           age: f.patients?.age || 'Adult', // Guessing age from patient record
+                           gender: f.patients?.gender,
+                           triage_priority: 'normal',
+                           presenting_complaint: f.follow_up_notes || 'Follow-up visit',
+                           check_in_time: new Date().toISOString()
+                        })} className="btn-primary text-xs py-2 px-4 whitespace-nowrap shadow-sm">
+                           Start Visit
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {followUps.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-16 text-center text-slate-400 bg-slate-50/50">
+                      <CheckCircle sx={{ fontSize: 56 }} className="mb-4 text-emerald-400" />
+                      <p className="font-black text-xl text-slate-700 tracking-tight">No upcoming follow-ups</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
           <table className="w-full text-sm text-left align-middle min-w-[1000px]">
             <thead className="bg-slate-50/50 border-b border-slate-100">
               <tr>
                 <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap w-4">Rank</th>
                 <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Patient ID</th>
                 <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Patient Details</th>
+                <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Case Type</th>
                 <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Complaint</th>
                 <th className="px-5 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap w-24">Status</th>
                 <th className="px-4 py-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">Temp (°C)</th>
@@ -199,13 +258,25 @@ export default function OPDQueue() {
 
                     {/* 3. Patient Details */}
                     <td className="px-5 py-4">
-                      <div className="font-black text-base text-slate-800 mb-1 leading-tight whitespace-nowrap">
-                        {v.patient_name}
+                      <div className="font-black text-base text-slate-800 mb-1 leading-tight whitespace-nowrap capitalize">
+                        {v.patient_name?.split(' ')[0]?.toLowerCase()}
                       </div>
                       <div className="text-sm font-bold text-slate-500 flex items-center">
                         <span className="w-10">{displayAge}</span>
                         <span>{displayGender}</span>
                       </div>
+                    </td>
+
+                    {/* 3.5 Case Type (OPD/IPD) */}
+                    <td className="px-5 py-4 whitespace-nowrap">
+                      {v.admission ? (
+                        <div className="flex items-center gap-2">
+                           <span className="font-black text-slate-900 text-[11px] uppercase tracking-tighter">IPD</span>
+                           <span className="font-bold text-primary-600 text-[10px] capitalize tracking-wider">{v.admission.ward?.toLowerCase()}</span>
+                        </div>
+                      ) : (
+                        <span className="font-black text-slate-400 text-[11px] uppercase tracking-tighter">OPD</span>
+                      )}
                     </td>
 
                     {/* 4. Complaint */}
@@ -278,7 +349,7 @@ export default function OPDQueue() {
 
               {!loading && sorted.length === 0 && (
                 <tr>
-                  <td colSpan={11}>
+                  <td colSpan={12}>
                     <div className="p-16 text-center text-slate-400 bg-slate-50/50">
                       <CheckCircle sx={{ fontSize: 56 }} className="mb-4 text-emerald-400 empty-state-icon" />
                       <p className="font-black text-xl text-slate-700 tracking-tight">Queue is clear!</p>
@@ -289,6 +360,7 @@ export default function OPDQueue() {
               )}
             </tbody>
           </table>
+          )}
         </div>
       </div>
     </div>

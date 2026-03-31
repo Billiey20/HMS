@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Person, ArrowBack, Save, Add, Delete, CheckCircle,
-  Send, HourglassEmpty
+  Send, HourglassEmpty, Refresh
 } from '@mui/icons-material';
 
 import { useAuth } from '../../context/AuthContext';
@@ -197,6 +197,7 @@ export default function Consultation() {
   const [saved, setSaved]         = useState(false);
   const [loadingDraft, setLoadingDraft] = useState(true);
   const [previewItem, setPreviewItem]   = useState(null);
+  const [visitedResults, setVisitedResults] = useState(new Set());
 
   // 0. Triage & Vitals
   const vitals = {
@@ -286,6 +287,40 @@ export default function Consultation() {
     loadData();
   }, [visit.visit_id]);
 
+  const handleLoadPast = async () => {
+    try {
+      setLoadingDraft(true);
+      const past = await consultationService.getPastConsultation(visit.patient_id || visit.patientId, visit.visit_id);
+      if (!past) {
+        alert("No past consultation found for this patient.");
+        return;
+      }
+      const ok = window.confirm("Load data from previous consultation? This will overwrite empty fields.");
+      if (!ok) return;
+
+      if (!historyPresenting) setHistoryPresenting(past.history_presenting || '');
+      if (!historyPast) setHistoryPast(past.history_past_medical || '');
+      if (!historyFamily) setHistoryFamily(past.history_family || '');
+      if (!historySocial) setHistorySocial(past.history_social || '');
+      if (!historyMedications) setHistoryMedications(past.history_medications || '');
+      if (!historyAllergies) setHistoryAllergies(past.history_allergies || '');
+
+      if (past.examination_findings) {
+         try {
+           const parsed = JSON.parse(past.examination_findings);
+           if (!generalExam) setGeneralExam(parsed.general || '');
+           if (!systemicExam) setSystemicExam(parsed.systemic || '');
+           if (!findings) setFindings(parsed.other || '');
+         } catch(e) {}
+      }
+      alert("Past consultation data loaded.");
+    } catch(e) {
+      alert("Failed to fetch past consultation.");
+    } finally {
+       setLoadingDraft(false);
+    }
+  };
+
   const handleSaveDraft = async () => {
     try {
       const payload = {
@@ -354,6 +389,16 @@ export default function Consultation() {
   };
 
   const handleFinalise = async () => {
+    // Safety check: All completed lab results must be viewed
+    const pendingReview = labResults.some(order => 
+      order.lab_order_items?.some(item => item.status === 'completed' && !visitedResults.has(item.id))
+    );
+    if (pendingReview) {
+      alert("Please review all completed lab results before finalising this consultation.");
+      setActiveTab(3); // Go to lab results tab
+      return;
+    }
+
     const yes = window.confirm("Finalise this consultation? Modifications will be locked.");
     if (!yes) return;
     try {
@@ -368,16 +413,26 @@ export default function Consultation() {
       if (rxItems.length > 0) {
         await consultationService.createPrescription({
           consultation_id: draft.id,
+          visit_id: visit.visit_id,
           patient_id: visit.patient_id,
-          prescribed_by: user.id
+          prescribed_by: user.id,
+          status: 'pending'
         }, rxItems.map(r => ({
-           drug_name: r.drug, dose: r.dose, frequency: r.frequency, duration: r.duration, route: r.route, quantity: parseInt(r.qty) || 1
+           drug_name: r.drug, dosage: r.dose, frequency: r.frequency, duration: r.duration, route: r.route, quantity: parseInt(r.qty) || 1
         })));
       }
 
-      // Update visit status
+      // Update visit status and include recommended ward in notes if applicable
       const exitStatus = decision === 'admit' ? 'awaiting_admission' : 'completed';
-      await opdService.updateStatus(visit.visit_id, exitStatus);
+      const updatePayload = { status: exitStatus };
+      
+      if (decision === 'admit' && admissionWard) {
+        // Appending to presenting_complaint is a safe way to ensure visibility in ADT queue
+        const currentComplaint = visit.complaint || '';
+        updatePayload.presenting_complaint = `${currentComplaint}\n\n[ADM REQ: ${admissionWard}]`.trim();
+      }
+
+      await opdService.updateVisit(visit.visit_id, updatePayload);
       alert(`Consultation finalised successfully!`);
       navigate('/opd/queue');
     } catch (err) {
@@ -444,21 +499,21 @@ export default function Consultation() {
             <div className="space-y-4">
               <SectionHead title="Triage & Vitals (Read-Only)" subtitle="Vitals recorded by Triage Nurses" />
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'Temp (°C)',   field: 'temperature' },
-                  { label: 'Pulse (bpm)', field: 'pulse' },
-                  { label: 'BP Systolic', field: 'bpSystolic' },
-                  { label: 'BP Diastolic',field: 'bpDiastolic' },
-                  { label: 'RR (/min)',   field: 'respRate' },
-                  { label: 'SpO₂ (%)',    field: 'spo2' },
-                  { label: 'Weight (kg)', field: 'weight' },
-                  { label: 'RBS (mmol/L)',field: 'bloodGlucose' },
-                ].map(({ label, field }) => (
-                  <div key={field} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">{label}</p>
-                    <p className="text-xl font-black text-slate-800">{vitals[field] || '—'}</p>
-                  </div>
-                ))}
+                 {[
+                   { label: 'Temp (°C)',   field: 'temperature' },
+                   { label: 'Pulse (bpm)', field: 'pulse' },
+                   { label: 'BP Systolic', field: 'bpSystolic' },
+                   { label: 'BP Diastolic',field: 'bpDiastolic' },
+                   { label: 'RR (/min)',   field: 'respRate' },
+                   { label: 'SpO₂ (%)',    field: 'spo2' },
+                   { label: 'Weight (kg)', field: 'weight' },
+                   { label: 'RBS (mmol/L)',field: 'bloodGlucose' },
+                 ].map(({ label, field }) => (
+                   <div key={field} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                     <p className="text-[10px] font-bold tracking-widest text-slate-400 capitalize mb-1">{label}</p>
+                     <p className="text-xl font-black text-slate-800">{vitals[field] || '—'}</p>
+                   </div>
+                 ))}
               </div>
               <div>
                 <label className="label">Presenting Complaint / Reason for Visit</label>
@@ -480,7 +535,15 @@ export default function Consultation() {
           {/* 1. History */}
           {activeTab === 1 && (
             <div className="space-y-4">
-              <SectionHead title="Clinical History" subtitle="Document the patient's history" />
+              <div className="flex justify-between items-center pb-3 mb-4 border-b border-slate-100">
+                <div>
+                   <h3 className="font-black text-slate-800">Clinical History</h3>
+                   <p className="text-xs text-slate-400 mt-0.5">Document the patient's history</p>
+                </div>
+                <button onClick={handleLoadPast} className="btn-secondary py-1 text-xs">
+                  <Refresh sx={{ fontSize: 14 }} className="mr-1" /> Load Past Consultation
+                </button>
+              </div>
               <TextArea label="History of Presenting Complaint" value={historyPresenting} onChange={setHistoryPresenting}
                 rows={4} placeholder="Onset, duration, progression, aggravating/relieving factors, associated symptoms…" />
               <div className="grid sm:grid-cols-2 gap-4">
@@ -534,7 +597,7 @@ export default function Consultation() {
                   {labResults.map(order => (
                     <div key={order.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
                       <div className="flex justify-between items-center p-3 bg-slate-50 border-b border-slate-100">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">
+                        <span className="text-xs font-bold text-slate-500 capitalize tracking-widest pl-1">
                           Test Panel: {new Date(order.ordered_at).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
                         </span>
                         <span className={`badge font-bold px-3 py-1 text-xs border ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
@@ -547,11 +610,14 @@ export default function Consultation() {
                               <span className="font-bold text-sm text-slate-700">{item.test_name}</span>
                               <div className="text-sm mt-1 sm:mt-0">
                                 {item.status === 'completed' ? (
-                                  <button onClick={() => setPreviewItem({ ...item, lab_orders: { patients: order.patients, ordered_at: order.ordered_at, ordered_by: order.ordered_by, urgency: order.urgency } })} className="px-3 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 font-bold border border-primary-100/50 rounded-lg shadow-sm transition-colors text-xs">
-                                     View Report
+                                <button onClick={() => {
+                                  setVisitedResults(p => new Set([...p, item.id]));
+                                  setPreviewItem({ ...item, lab_orders: { patients: order.patients, ordered_at: order.ordered_at, ordered_by: order.ordered_by, urgency: order.urgency } });
+                                }} className={`px-3 py-1.5 font-bold border rounded-lg shadow-sm transition-colors text-xs ${visitedResults.has(item.id) ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-primary-50 hover:bg-primary-100 text-primary-700 border-primary-100/50'}`}>
+                                     {visitedResults.has(item.id) ? 'Viewed' : 'View Report'}
                                   </button>
                                 ) : (
-                                  <span className="text-amber-500 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
+                                  <span className="text-amber-500 font-bold text-[11px] capitalize tracking-wider flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
                                     <HourglassEmpty sx={{fontSize: 14}}/> Processing
                                   </span>
                                 )}
@@ -655,7 +721,7 @@ export default function Consultation() {
 
               {/* Summary */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 mt-4">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Consultation Summary</p>
+                <p className="text-xs font-bold text-slate-500 capitalize tracking-wide">Consultation Summary</p>
                 <div className="flex flex-wrap gap-3 text-sm">
                   <span><strong>Diagnosis:</strong> {primaryDx || '—'}</span>
                   <span><strong>Prescriptions:</strong> {rxItems.length} item(s)</span>

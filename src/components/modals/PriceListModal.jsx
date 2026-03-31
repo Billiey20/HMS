@@ -50,14 +50,14 @@ export default function PriceListModal({ onClose }) {
           <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center transition-all text-slate-400 hover:text-slate-600 font-bold">×</button>
         </div>
         
-        <div className="p-6 bg-white">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
+        <div className="px-6 py-2 bg-white">
+          <div className="relative border-b border-slate-100 flex items-center">
+            <Search className="text-slate-300" fontSize="small" />
             <input 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
               placeholder="Search services or categories..." 
-              className="input pl-9 w-full bg-slate-50 border-transparent focus:bg-white focus:border-primary-500 shadow-sm"
+              className="w-full py-3 px-3 text-sm font-bold text-slate-700 placeholder:text-slate-300 bg-transparent focus:outline-none"
               autoFocus
             />
           </div>

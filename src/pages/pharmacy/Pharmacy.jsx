@@ -362,7 +362,7 @@ export default function Pharmacy() {
                     <h3 className="font-black text-slate-800">{rx.patients?.first_name} {rx.patients?.last_name}</h3>
                     <span className={`badge ${STATUS_BADGE[rx.status]}`}>{rx.status}</span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">{rx.patients?.patient_no} · Dr. {rx.consultations?.opd_visits?.users?.first_name} · {new Date(rx.prescribed_at).toLocaleString()}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{rx.patients?.patient_no} · Dr. {rx.prescribed_by_user?.first_name} {rx.prescribed_by_user?.last_name || ''} · {new Date(rx.prescribed_at).toLocaleString()}</p>
                 </div>
                 {rx.status !== 'dispensed' && (
                   <button onClick={() => setDispensing(rx)} className="btn-primary shrink-0">

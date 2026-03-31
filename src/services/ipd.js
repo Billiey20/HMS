@@ -19,9 +19,26 @@ export const ipdService = {
   },
 
   async listAdmissions() {
-    const { data, error } = await supabase.from('v_current_inpatients').select('*');
+    const { data, error } = await supabase
+      .from('admissions')
+      .select('id, admission_no, patient_id, visit_id, admitting_diagnosis, admitted_at, patients(patient_no, first_name, last_name, gender, age), wards(name), beds(bed_no), users!admissions_admitted_by_fkey(first_name, last_name)')
+      .eq('status', 'active');
     if (error) throw error;
-    return data;
+    return data.map(a => ({
+      admission_id: a.id,
+      admission_no: a.admission_no,
+      patient_id: a.patient_id,
+      visit_id: a.visit_id,
+      patient_no: a.patients?.patient_no,
+      patient_name: `${a.patients?.first_name} ${a.patients?.last_name}`,
+      gender: a.patients?.gender,
+      age: a.patients?.age,
+      ward: a.wards?.name,
+      bed_no: a.beds?.bed_no,
+      admitting_diagnosis: a.admitting_diagnosis,
+      admitted_at: a.admitted_at,
+      admitted_by: `${a.users?.first_name || ''} ${a.users?.last_name || ''}`.trim()
+    }));
   },
   
   async listPendingAdmissions() {
@@ -44,7 +61,11 @@ export const ipdService = {
     
     if (payload.bed_id) await supabase.from('beds').update({ status: 'occupied' }).eq('id', payload.bed_id);
     
-    const { data, error } = await supabase.from('admissions').insert([admissionData]).select().single();
+    // Explicitly set status to 'active' for the new admission record
+    const { data, error } = await supabase.from('admissions').insert([{
+      ...admissionData,
+      status: 'active'
+    }]).select().single();
     if (error) throw error;
 
     // Save admission notes to clinical_notes if provided
@@ -52,7 +73,7 @@ export const ipdService = {
       await this.addNote({
         admission_id: data.id,
         patient_id: payload.patient_id,
-        author_id: payload.admitted_by,
+        author_id: payload.admitted_by, // mapped inside addNote
         note_type: 'doctor',
         note_text: `Initial Admission Notes: ${notes}`,
         created_at: new Date().toISOString()
@@ -84,7 +105,14 @@ export const ipdService = {
   },
 
   async addNote(payload) {
-    const { data, error } = await supabase.from('clinical_notes').insert([payload]).select().single();
+    const { data, error } = await supabase.from('clinical_notes').insert([{
+      admission_id: payload.admission_id,
+      patient_id: payload.patient_id,
+      written_by: payload.author_id, // maps to actual DB column
+      note_type: payload.note_type,
+      note: payload.note_text,       // maps to actual DB column
+      created_at: payload.created_at || new Date().toISOString()
+    }]).select().single();
     if (error) throw error;
     return data;
   },

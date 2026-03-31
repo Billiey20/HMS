@@ -44,7 +44,7 @@ const NAV = [
     items: [
       { to: '/ipd/wards',      label: 'Ward & Bed Map',    icon: Hotel,           section: 'ward_map' },
       { to: '/ipd/admissions', label: 'Admissions (ADT)',  icon: Hotel,           section: 'ipd' },
-      { to: '/ipd/nursing',    label: 'Nursing Rounds',    icon: MedicalServices, section: 'ipd' },
+      { to: '/ipd/nursing',    label: 'Ward Rounds (IPD)', icon: MedicalServices, section: 'ipd' },
     ],
   },
   {

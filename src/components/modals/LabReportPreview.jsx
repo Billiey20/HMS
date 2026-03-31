@@ -12,6 +12,43 @@ export default function LabReportPreview({ item, onClose }) {
   try { parsedResult = item?.result ? JSON.parse(item.result) : {}; } catch {}
 
   const template = TEST_TEMPLATES[item?.test_name] || [];
+  const patientData = item?.lab_orders?.patients || patient;
+
+  const getOrdinalDay = (day) => {
+    if (day > 3 && day < 21) return day + 'th';
+    switch (day % 10) {
+      case 1:  return day + "st";
+      case 2:  return day + "nd";
+      case 3:  return day + "rd";
+      default: return day + "th";
+    }
+  };
+
+  const formatHumanDate = (dateStr) => {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[d.getMonth()];
+    const day = getOrdinalDay(d.getDate());
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${month} ${day} ${year} ${hours}:${mins}`;
+  };
+
+  const toSentenceCase = (str) => {
+    if (!str) return '';
+    const s = String(str).toLowerCase().trim();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
+  const formatDoctorName = (name) => {
+    if (!name) return 'Dr. Clinician';
+    // Split and take first name only, capitalize first letter
+    const firstName = name.split(/[\s,]+/)[0];
+    return `Dr. ${toSentenceCase(firstName)}`;
+  };
 
   const calculateAge = (ageString) => {
     if (!ageString) return '-';
@@ -85,14 +122,15 @@ export default function LabReportPreview({ item, onClose }) {
                     <span className="text-4xl font-black">CH</span>
                  </div>
               </div>
-              <div className="text-right flex flex-col items-end">
+
+              <div className="text-left flex flex-col items-start max-w-[300px]">
                 <h2 className="text-3xl font-black" style={{ color: '#055b38' }}>CareFirst Hospital</h2>
                 <p className="text-[14px] font-semibold mt-1">Nairobi, Kenya</p>
                 <p className="text-[14px]">P.O Box 12345-00100 City Square</p>
                 <p className="text-[14px]">TEL: <span className="font-bold">020 123 4567 / 0700 123 456</span></p>
                 <p className="text-[14px] text-blue-800">Email: lab@carefirsthospital.co.ke</p>
                 <p className="text-[14px] text-blue-800">Website: www.carefirsthospital.co.ke</p>
-                <p className="text-[13px] font-bold text-emerald-700 mt-1 italic">Compassionate care, advanced diagnostics.</p>
+                <p className="text-[13px] font-bold text-emerald-700 mt-1 italic leading-tight">Compassionate care, advanced diagnostics.</p>
               </div>
             </div>
 
@@ -107,22 +145,22 @@ export default function LabReportPreview({ item, onClose }) {
               <div>
                 <h4 className="font-bold uppercase text-slate-600 mb-2 border-b border-slate-200 pb-1">Patient Information</h4>
                 <div className="grid grid-cols-[100px_1fr] gap-x-2 gap-y-1">
-                  <span className="font-semibold text-slate-600">Patient</span> <span className="uppercase font-bold">: {patient?.first_name} {patient?.last_name}</span>
-                  <span className="font-semibold text-slate-600">Age</span> <span className="uppercase">: {calculateAge(patient?.age)} YRS</span>
-                  <span className="font-semibold text-slate-600">Gender</span> <span className="uppercase">: {patient?.gender || 'UNKNOWN'}</span>
-                  <span className="font-semibold text-slate-600">Patient No</span> <span className="font-mono">: {patient?.patient_no}</span>
-                  <span className="font-semibold text-slate-600">Telephone</span> <span>: {patient?.phone || '-'}</span>
+                  <span className="font-semibold text-slate-600">Patient</span> <span className="uppercase font-bold">: {patientData?.first_name} {patientData?.last_name}</span>
+                  <span className="font-semibold text-slate-600">Age</span> <span className="uppercase">: {calculateAge(patientData?.age)} YRS</span>
+                  <span className="font-semibold text-slate-600">Gender</span> <span className="uppercase">: {patientData?.gender || 'UNKNOWN'}</span>
+                  <span className="font-semibold text-slate-600">Patient No</span> <span className="font-mono">: {patientData?.patient_no}</span>
+                  <span className="font-semibold text-slate-600">Telephone</span> <span>: {patientData?.phone || '-'}</span>
                 </div>
               </div>
 
               {/* Lab / Test Info */}
               <div>
                 <h4 className="font-bold uppercase text-slate-600 mb-2 border-b border-slate-200 pb-1">Test Information</h4>
-                <div className="grid grid-cols-[120px_1fr] gap-x-2 gap-y-1">
-                  <span className="font-semibold text-slate-600">Lab ID</span> <span className="uppercase font-mono font-bold">: {item?.lab_id}</span>
-                  <span className="font-semibold text-slate-600">Received</span> <span>: {item?.lab_orders?.ordered_at ? new Date(item.lab_orders.ordered_at).toLocaleString() : '-'}</span>
-                  <span className="font-semibold text-slate-600">Sample Collected</span> <span>: {item?.sample_collected_at ? new Date(item.sample_collected_at).toLocaleString() : '-'}</span>
-                  <span className="font-semibold text-slate-600">Results Validated</span> <span>: {item?.validated_at ? new Date(item.validated_at).toLocaleString() : (item?.result_at ? new Date(item.result_at).toLocaleString() : '-')}</span>
+                <div className="grid grid-cols-[120px_1fr] gap-x-2 gap-y-1 whitespace-nowrap">
+                  <span className="font-semibold text-slate-600 shrink-0">Lab ID</span> <span className="uppercase font-mono font-bold">: {item?.lab_id}</span>
+                  <span className="font-semibold text-slate-600 shrink-0">Received</span> <span className="text-[11px]">: {formatHumanDate(item?.lab_orders?.ordered_at)}</span>
+                  <span className="font-semibold text-slate-600 shrink-0">Sample Collected</span> <span className="text-[11px]">: {formatHumanDate(item?.sample_collected_at)}</span>
+                  <span className="font-semibold text-slate-600 shrink-0">Results Validated</span> <span className="text-[11px]">: {formatHumanDate(item?.validated_at || item?.result_at)}</span>
                 </div>
               </div>
 
@@ -130,9 +168,9 @@ export default function LabReportPreview({ item, onClose }) {
               <div>
                 <h4 className="font-bold uppercase text-slate-600 mb-2 border-b border-slate-200 pb-1">Origin Details</h4>
                 <div className="grid grid-cols-[100px_1fr] gap-x-2 gap-y-1">
-                  <span className="font-semibold text-slate-600">Requested By</span> <span className="uppercase font-bold">: Dr. {item?.lab_orders?.ordered_by || 'OPD Physician'}</span>
-                  <span className="font-semibold text-slate-600">Location</span> <span className="uppercase">: Outpatient Dept</span>
-                  <span className="font-semibold text-slate-600">Priority</span> <span className="uppercase font-bold">: {item?.lab_orders?.urgency || 'Routine'}</span>
+                  <span className="font-semibold text-slate-600">Requested By</span> <span className="font-bold">: {formatDoctorName(item?.lab_orders?.ordered_by)}</span>
+                  <span className="font-semibold text-slate-600">Location</span> <span>: {toSentenceCase(item?.lab_orders?.location || 'Outpatient dept')}</span>
+                  <span className="font-semibold text-slate-600">Priority</span> <span className="font-bold">: {toSentenceCase(item?.lab_orders?.urgency || 'Routine')}</span>
                 </div>
               </div>
 
@@ -165,23 +203,23 @@ export default function LabReportPreview({ item, onClose }) {
                      </tr>
                    </thead>
                    <tbody>
-                     {template.map((row, idx) => {
-                       const val  = parsedResult[row.name] || '';
-                       const flag = computeFlag(val, row);
-                       const isAbn = flag === 'H' || flag === 'L';
-                       
-                       return (
-                         <tr key={idx} className="border-b border-slate-200">
-                           <td className="py-2 pl-2 font-semibold">{row.name}</td>
-                           <td className={`py-2 font-bold ${isAbn ? 'text-red-600' : ''}`}>{val || '—'}</td>
-                           <td className="py-2 text-slate-600">{row.unit || '—'}</td>
-                           <td className="py-2">
-                             {flag && <span className={`font-black font-mono ${flag === 'H' ? 'text-red-600' : flag === 'L' ? 'text-blue-600' : 'text-slate-800'}`}>{flag}</span>}
-                           </td>
-                           <td className="py-2 text-slate-600 text-[13px]">{refInterval(row)}</td>
-                         </tr>
-                       );
-                     })}
+                      {template.map((row, idx) => {
+                        const val  = parsedResult[row.name] || '';
+                        const flag = computeFlag(val, row);
+                        const isAbn = flag === 'H' || flag === 'L';
+                        
+                        return (
+                          <tr key={idx} className="border-b border-slate-200">
+                            <td className={`py-2 pl-2 ${isAbn ? 'font-bold' : ''}`}>{row.name}</td>
+                            <td className={`py-2 ${isAbn ? 'font-bold text-red-600' : ''}`}>{val || '—'}</td>
+                            <td className={`py-2 text-slate-600 ${isAbn ? 'font-bold' : ''}`}>{row.unit || '—'}</td>
+                            <td className="py-2">
+                              {flag && <span className={`font-black font-mono ${flag === 'H' ? 'text-red-600' : flag === 'L' ? 'text-blue-600' : 'text-slate-800'}`}>{flag}</span>}
+                            </td>
+                            <td className={`py-2 text-slate-600 text-[13px] ${isAbn ? 'font-bold' : ''}`}>{refInterval(row)}</td>
+                          </tr>
+                        );
+                      })}
                    </tbody>
                  </table>
                ) : (

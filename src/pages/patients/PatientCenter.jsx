@@ -15,7 +15,8 @@ function StatusBadge({ status }) {
     discharged:'text-slate-500',
     deceased:  'text-rose-600',
   };
-  return <span className={`text-xs font-black uppercase tracking-wider ${map[status] || 'text-slate-500'} capitalize`}>{status}</span>;
+  return <span className={`text-xs font-black capitalize tracking-widest ${map[status] || 'text-slate-500'}`}>{status}</span>;
+
 }
 
 export default function PatientCenter() {
@@ -48,13 +49,13 @@ export default function PatientCenter() {
       await opdService.createVisit({
         patient_id: encounterPatient.id,
         triage_priority: type === 'Emergency' ? 'emergency' : 'normal',
-        status: type === 'Follow-Up' ? 'in_consultation' : 'waiting', // Follow-up bypasses triage directly to opd queue? Or still wait? Lets just default:
+        status: type === 'Follow-Up' ? 'waiting_doctor' : 'waiting_triage', 
         visit_type: type,
       });
-      alert(`Encounter created: ${type}`);
+      alert(`Visit created: ${type}`);
       setEncounterPatient(null);
     } catch (e) {
-      alert('Failed to create encounter: ' + e.message);
+      alert('Failed to create visit: ' + e.message);
     } finally {
       setQueueing(false);
     }
@@ -119,22 +120,22 @@ export default function PatientCenter() {
                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">{p.patient_no}</td>
                   <td className="px-4 py-3 font-bold text-slate-800">{p.first_name} {p.middle_name} {p.last_name}</td>
-                  <td className="px-4 py-3 text-slate-600">{p.age} · {p.gender}</td>
+                  <td className="px-4 py-3 text-slate-600">{p.age} · <span className="capitalize">{p.gender?.toLowerCase()}</span></td>
                   <td className="px-4 py-3 text-slate-600">{p.phone || '—'}</td>
                   <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                   <td className="px-4 py-3 text-slate-500 text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString('en-GB') : '—'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                       <button 
+                      <button 
                          onClick={() => setSelectedHistoryPatient(p)}
-                         className="btn-secondary text-xs py-1.5 px-4 font-black uppercase tracking-widest hover:bg-slate-800 hover:text-white transition-all shadow-sm ring-1 ring-slate-200">
-                         View History
+                         className="btn-secondary text-xs py-1.5 px-4 font-black capitalize tracking-widest hover:bg-slate-800 hover:text-white transition-all shadow-sm ring-1 ring-slate-200">
+                         View history
                        </button>
                       {role !== 'admin' && p.status === 'active' && (
                         <button 
                           onClick={() => setEncounterPatient(p)} 
                           className="bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 text-xs font-semibold py-1 px-3 rounded-lg transition-colors flex items-center gap-1">
-                          <LocalHospital sx={{ fontSize: 14 }} /> New Encounter
+                          <LocalHospital sx={{ fontSize: 14 }} /> New visit
                         </button>
                       )}
                     </div>
@@ -164,19 +165,19 @@ export default function PatientCenter() {
         />
       )}
 
-      {/* Encounter Modal */}
+      {/* Visit Modal */}
       {encounterPatient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
              <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
-                <h3 className="font-black text-slate-800">New Encounter</h3>
+                <h3 className="font-black text-slate-800">New visit</h3>
                 <button onClick={() => setEncounterPatient(null)}><Close className="text-slate-400"/></button>
              </div>
              <div className="p-6">
-                <p className="text-sm font-bold text-slate-500 mb-4 tracking-widest uppercase">Patient</p>
+                <p className="text-sm font-bold text-slate-500 mb-4 tracking-widest capitalize">Patient</p>
                 <p className="text-lg font-black text-slate-800 mb-6">{encounterPatient.first_name} {encounterPatient.last_name}</p>
 
-                <p className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Select Encounter Type</p>
+                <p className="text-xs font-bold text-slate-500 mb-2 capitalize tracking-wide">Select visit type</p>
                 <div className="space-y-2">
                    {['Walk-In', 'Follow-Up', 'Emergency', 'Routine Clinic'].map(type => (
                       <button key={type} onClick={() => createEncounter(type)} disabled={queueing}

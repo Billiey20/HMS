@@ -4,7 +4,7 @@ export const billingService = {
   async list({ status = null, search = '' } = {}) {
     let q = supabase
       .from('bills')
-      .select('*, patients(patient_no, first_name, last_name), bill_items(*), payments(*)')
+      .select('*, patients(patient_no, first_name, last_name, phone), bill_items(*), payments(*)')
       .order('created_at', { ascending: false });
     if (status) q = q.eq('status', status);
     if (search) q = q.or(`bill_no.ilike.%${search}%`);

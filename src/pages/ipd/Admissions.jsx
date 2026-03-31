@@ -5,11 +5,11 @@ import {
 } from '@mui/icons-material';
 
 const wardColors = {
-  'General Ward':   'badge-blue',
-  'Maternity Ward': 'badge-red',
-  'Surgical Ward':  'badge-slate',
-  'Paediatric Ward':'badge-amber',
-  'ICU / HDU':      'badge-red',
+  'General Ward':   'text-blue-600',
+  'Maternity Ward': 'text-rose-600',
+  'Surgical Ward':  'text-slate-600',
+  'Paediatric Ward':'text-amber-600',
+  'ICU / HDU':      'text-red-600',
 };
 
 import { ipdService } from '../../services/ipd';
@@ -167,16 +167,17 @@ export default function Admissions() {
   const filteredAdmissions = admissions
     .filter(a => wardFilter === 'all' || a.ward === wardFilter)
     .filter(a =>
-      a.patient_name.toLowerCase().includes(search.toLowerCase()) ||
-      a.patient_no.toLowerCase().includes(search.toLowerCase()) ||
-      a.admission_no.toLowerCase().includes(search.toLowerCase())
+      (a.patient_name?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (a.patient_no?.toLowerCase() || '').includes(search.toLowerCase()) ||
+      (a.admission_no?.toLowerCase() || '').includes(search.toLowerCase())
     );
 
   const filteredPending = pending
-    .filter(p =>
-      `${p.patients?.first_name} ${p.patients?.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-      p.patients?.patient_no.toLowerCase().includes(search.toLowerCase())
-    );
+    .filter(p => {
+      const name = p.patients ? `${p.patients.first_name} ${p.patients.last_name}` : `Unknown Patient (${p.patient_id?.slice(0,8)})`;
+      const pNo = p.patients?.patient_no || '';
+      return name.toLowerCase().includes(search.toLowerCase()) || pNo.toLowerCase().includes(search.toLowerCase());
+    });
 
   const handleAdmit = async (payload) => {
     try {
@@ -249,7 +250,7 @@ export default function Admissions() {
               <>
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {['Adm #', 'Patient', 'Ward / Bed', 'Diagnosis', 'Admitted', 'Doctor', 'Actions'].map(h => (
+                    {['Patient ID', 'Patient', 'Ward / Bed', 'Diagnosis', 'Admitted', 'Doctor', 'Actions'].map(h => (
                       <th key={h} className="px-5 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">{h}</th>
                     ))}
                   </tr>
@@ -257,14 +258,14 @@ export default function Admissions() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredAdmissions.map(adm => (
                     <tr key={adm.admission_id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-5 py-4 font-mono text-xs text-slate-500 font-bold">{adm.admission_no}</td>
+                      <td className="px-5 py-4 font-mono text-xs text-slate-500 font-bold">{adm.patient_no}</td>
                       <td className="px-5 py-4">
-                        <p className="font-black text-slate-800 text-base leading-tight mb-1">{adm.patient_name}</p>
-                        <p className="text-xs font-bold text-slate-500">{adm.patient_no} · {adm.age} · {adm.gender}</p>
+                        <p className="font-black text-slate-800 text-base leading-tight mb-1 capitalize">{adm.patient_name?.split(' ')[0]?.toLowerCase()}</p>
+                        <p className="text-xs font-bold text-slate-500">{adm.age} · {adm.gender}</p>
                       </td>
-                      <td className="px-5 py-4">
-                        <span className={`badge ${wardColors[adm.ward] || 'badge-slate'} font-black text-[10px] uppercase pl-2 pr-2`}>{adm.ward}</span>
-                        <p className="text-[11px] font-bold text-slate-500 mt-1 whitespace-nowrap">BED {adm.bed_no}</p>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className={`font-black text-[11px] capitalize tracking-wider ${wardColors[adm.ward] || 'text-slate-500'}`}>{adm.ward?.toLowerCase()}</span>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase">BED {adm.bed_no}</p>
                       </td>
                       <td className="px-5 py-4 text-slate-700 max-w-[200px]">
                         <p className="truncate font-semibold text-xs">{adm.admitting_diagnosis}</p>
@@ -272,7 +273,7 @@ export default function Admissions() {
                       <td className="px-5 py-4 text-slate-500 text-xs font-bold">
                         {new Date(adm.admitted_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="px-5 py-4 text-slate-500 text-xs font-bold uppercase tracking-tighter">{adm.admitted_by}</td>
+                      <td className="px-5 py-4 text-slate-500 text-xs font-bold capitalize tracking-tight">{adm.admitted_by?.split(' ')[0]?.toLowerCase()}</td>
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
                           <button onClick={() => setDischarging(adm)}
@@ -299,7 +300,9 @@ export default function Admissions() {
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-5 py-4">
                         <p className="font-black text-slate-800 text-base leading-tight mb-1">
-                          {p.patients?.first_name} {p.patients?.last_name}
+                          {p.patients ? `${p.patients.first_name} ${p.patients.last_name}` : (
+                            <span className="text-slate-400 italic">Unknown Patient ({p.patient_id?.slice(0,8)})</span>
+                          )}
                         </p>
                         <p className="text-xs font-bold text-slate-500">{p.patients?.patient_no} · {p.patients?.age} · {p.patients?.gender}</p>
                       </td>
@@ -325,8 +328,12 @@ export default function Admissions() {
           {(activeTab === 'inpatients' ? filteredAdmissions : filteredPending).length === 0 && !loading && (
              <div className="p-20 text-center text-slate-400 bg-white">
                 <Hotel sx={{ fontSize: 56 }} className="mb-4 text-slate-200" />
-                <p className="text-lg font-black text-slate-800">Everything Clear!</p>
-                <p className="text-sm font-medium mt-1">No {activeTab} at the moment.</p>
+                <p className="text-lg font-black text-slate-800">Queue is Clear</p>
+                <p className="text-sm font-medium mt-1">
+                  {activeTab === 'inpatients' 
+                    ? "There are currently no active inpatients in the ward." 
+                    : "No patients are currently awaiting ward assignment. New referrals from clinicians will appear here."}
+                </p>
              </div>
           )}
           

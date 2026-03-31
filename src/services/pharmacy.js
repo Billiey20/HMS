@@ -4,7 +4,7 @@ export const pharmacyService = {
   async listPrescriptions() {
     const { data, error } = await supabase
       .from('prescriptions')
-      .select('*, patients(patient_no, first_name, last_name), prescription_items(*), consultations(visit_id, opd_visits(assigned_doctor_id, users(first_name, last_name)))')
+      .select('*, patients(patient_no, first_name, last_name), prescription_items(*), prescribed_by_user:prescribed_by(first_name, last_name)')
       .order('prescribed_at', { ascending: false });
     if (error) throw error;
     return data;

@@ -11,13 +11,14 @@ const DEPARTMENTS = [
 
 const ROLES = ['admin', 'doctor', 'nurse', 'triage', 'reception', 'pharmacy', 'lab_staff', 'billing', 'hr', 'store_keeper'];
 
-const ROLE_BADGE = {
-  admin:        'badge-blue',    doctor:       'badge-green',
-  nurse:        'badge-green',   triage:       'badge-emerald',
-  reception:    'badge-slate',   pharmacy:     'badge-amber',
-  lab_staff:    'badge-blue',    billing:      'badge-amber',
-  hr:           'badge-slate',   store_keeper: 'badge-amber',
+const ROLE_TEXT_COLOR = {
+  admin:        'text-blue-600',    doctor:       'text-emerald-600',
+  nurse:        'text-emerald-600',   triage:       'text-teal-600',
+  reception:    'text-slate-500',   pharmacy:     'text-amber-600',
+  lab_staff:    'text-blue-600',    billing:      'text-amber-600',
+  hr:           'text-slate-500',   store_keeper: 'text-amber-600',
 };
+
 
 function AddStaffModal({ onClose, onSave }) {
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '', roleId: '', deptId: '', empNo: '', dutyStation: '' });
@@ -222,14 +223,16 @@ export default function HR() {
       </div>
 
       {/* Role summary */}
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => setRole('all')}
-          className={`badge cursor-pointer ${roleFilter === 'all' ? 'bg-primary-600 text-white border-transparent' : 'badge-slate'}`}>
+      <div className="flex flex-wrap gap-4 border-b border-slate-100 pb-2">
+        <button key="all" onClick={() => setRole('all')}
+          className={`pb-2 text-[11px] font-black uppercase tracking-wider transition-all
+            ${roleFilter === 'all' ? 'text-primary-700 border-b-2 border-primary-600' : 'text-slate-400 hover:text-slate-600'}`}>
           All ({staff.length})
         </button>
         {ROLES.map(r => roleCounts[r] > 0 && (
           <button key={r} onClick={() => setRole(roleFilter === r ? 'all' : r)}
-            className={`badge cursor-pointer capitalize ${roleFilter === r ? 'bg-primary-600 text-white border-transparent' : ROLE_BADGE[r]}`}>
+            className={`pb-2 text-[11px] font-black capitalize tracking-wider transition-all
+              ${roleFilter === r ? `${ROLE_TEXT_COLOR[r]} border-b-2 border-current` : 'text-slate-400 hover:text-slate-600'}`}>
             {r.replace('_',' ')} ({roleCounts[r]})
           </button>
         ))}
@@ -237,13 +240,15 @@ export default function HR() {
 
       {error && <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-semibold">⚠️ {error}</div>}
 
-      <div className="card p-3 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 items-center py-2">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search staff by name, email or employee no…" className="input pl-9" />
+            placeholder="Search staff by name, email or employee no…" 
+            className="input pl-9 bg-transparent border-slate-200 focus:bg-white" />
         </div>
-        <select value={deptFilter} onChange={e => setDept(e.target.value)} className="input sm:w-52">
+        <select value={deptFilter} onChange={e => setDept(e.target.value)} 
+          className="input sm:w-52 bg-transparent border-slate-200 focus:bg-white cursor-pointer">
           <option value="all">All Departments</option>
           {depts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </select>
@@ -251,63 +256,86 @@ export default function HR() {
 
       {loading && <div className="card p-8 text-center text-slate-400">Loading staff…</div>}
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {!loading && filtered.map(s => {
-          const role = getRole(s);
-          const dept = getDept(s);
-          return (
-            <div key={s.id} className="card p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-primary-100 flex items-center justify-center shrink-0">
-                    <span className="text-primary-700 font-black text-base">
-                      {(s.first_name?.[0] || '?')}{(s.last_name?.[0] || '')}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-black text-slate-800">{s.first_name} {s.last_name}</p>
-                    <span className={`badge ${ROLE_BADGE[role] || 'badge-slate'} text-[10px] capitalize`}>
-                      {role.replace('_',' ')}
-                    </span>
-                  </div>
-                </div>
-                <button className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <Edit sx={{ fontSize: 16 }} />
-                </button>
-              </div>
-              <div className="space-y-1.5 text-xs text-slate-600">
-                <div className="flex items-center gap-2">
-                  <Badge sx={{ fontSize: 13 }} className="text-slate-400" />
-                  <span>
-                    {s.employee_no || '—'} · {s.duty_station ? <span className="font-semibold text-primary-700">{s.duty_station}</span> : dept !== 'N/A' ? dept : 'No Station'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Email sx={{ fontSize: 13 }} className="text-slate-400" />
-                  <span className="truncate">{s.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone sx={{ fontSize: 13 }} className="text-slate-400" />
-                  <span>{s.phone || '—'}</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100">
-                <span className="badge badge-green">active</span>
-                <button className="btn-secondary text-xs py-1 px-3">View Profile</button>
-              </div>
-            </div>
-          );
-        })}
-        {!loading && filtered.length === 0 && (
-          <div className="col-span-3 card p-12 text-center text-slate-400">
-            <Group sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
-            <p className="font-bold text-slate-500">
-              {staff.length === 0
-                ? 'No staff profiles found. Use the Add Staff button to create new accounts.'
-                : 'No staff match your search or filter'}
-            </p>
-          </div>
-        )}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left min-w-[800px]">
+             <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                   {['Staff Member', 'Role', 'Station / Dept', 'Contact Info', 'Status', 'Actions'].map(h => (
+                      <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
+                   ))}
+                </tr>
+             </thead>
+             <tbody className="divide-y divide-slate-100">
+                {loading && (
+                   <tr><td colSpan={6} className="py-12 text-center text-slate-400">Loading staff directory…</td></tr>
+                )}
+                {!loading && filtered.map(s => {
+                  const role = getRole(s);
+                  const dept = getDept(s);
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50 transition-colors group">
+                       <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                             <div className="w-9 h-9 rounded-xl bg-primary-100 flex items-center justify-center shrink-0 border border-primary-200">
+                                <span className="text-primary-700 font-black text-xs">
+                                  {(s.first_name?.[0] || '?')}{(s.last_name?.[0] || '')}
+                                </span>
+                             </div>
+                             <div>
+                                <p className="font-bold text-slate-800 leading-tight">{s.first_name} {s.last_name}</p>
+                                <p className="text-[10px] font-mono text-slate-400">{s.employee_no || 'NO-ID'}</p>
+                             </div>
+                          </div>
+                       </td>
+                       <td className="px-4 py-3">
+                          <span className={`text-[10px] font-black capitalize tracking-widest ${ROLE_TEXT_COLOR[role] || 'text-slate-400'}`}>
+                             {role.replace('_',' ')}
+                          </span>
+                       </td>
+                       <td className="px-4 py-3">
+                          <div className="text-xs">
+                             <p className="font-semibold text-slate-700">{s.duty_station || 'No Station'}</p>
+                             <p className="text-[10px] text-slate-400 uppercase tracking-tighter">{dept}</p>
+                          </div>
+                       </td>
+                       <td className="px-4 py-3">
+                          <div className="space-y-0.5">
+                             <div className="flex items-center gap-1.5 text-slate-600 text-xs">
+                                <Email sx={{ fontSize: 13 }} className="text-slate-300" />
+                                <span className="truncate max-w-[150px]">{s.email}</span>
+                             </div>
+                             <div className="flex items-center gap-1.5 text-slate-600 text-xs">
+                                <Phone sx={{ fontSize: 13 }} className="text-slate-300" />
+                                <span>{s.phone || '—'}</span>
+                             </div>
+                          </div>
+                       </td>
+                       <td className="px-4 py-3">
+                          <span className="text-[10px] font-black capitalize text-emerald-600 tracking-widest">Active</span>
+                       </td>
+                       <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-600 transition-all">
+                                <Edit sx={{ fontSize: 16 }} />
+                             </button>
+                             <button className="btn-secondary text-[10px] py-1 px-3 font-bold uppercase tracking-wider">Profile</button>
+                          </div>
+                       </td>
+                    </tr>
+                  );
+                })}
+                {!loading && filtered.length === 0 && (
+                   <tr>
+                      <td colSpan={6} className="py-20 text-center text-slate-400">
+                         <Group sx={{ fontSize: 48 }} className="mb-3 opacity-20" />
+                         <p className="font-bold text-slate-500">No staff members found.</p>
+                      </td>
+                   </tr>
+                )}
+             </tbody>
+          </table>
+        </div>
       </div>
 
       {showAdd && <AddStaffModal onClose={() => setShowAdd(false)} onSave={loadStaff} />}
