@@ -5,16 +5,17 @@ import { useAuth } from '../../context/AuthContext';
 import PatientRegistrationModal from '../../components/modals/PatientRegistrationModal';
 import PatientHistoryModal from '../../components/modals/PatientHistoryModal';
 import { supabase } from '../../lib/supabase';
+import { Close } from '@mui/icons-material';
 
 
 function StatusBadge({ status }) {
   const map = {
-    active:    'badge-green',
-    admitted:  'badge-blue',
-    discharged:'badge-slate',
-    deceased:  'badge-red',
+    active:    'text-emerald-600',
+    admitted:  'text-blue-600',
+    discharged:'text-slate-500',
+    deceased:  'text-rose-600',
   };
-  return <span className={`badge ${map[status] || 'badge-slate'} capitalize`}>{status}</span>;
+  return <span className={`text-xs font-black uppercase tracking-wider ${map[status] || 'text-slate-500'} capitalize`}>{status}</span>;
 }
 
 export default function PatientCenter() {
@@ -24,8 +25,9 @@ export default function PatientCenter() {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
-  const [queueing, setQueueing] = useState(null); 
+  const [queueing, setQueueing] = useState(false); 
   const [selectedHistoryPatient, setSelectedHistoryPatient] = useState(null);
+  const [encounterPatient, setEncounterPatient] = useState(null);
 
   const loadPatients = useCallback(async () => {
     setLoading(true); setError(null);
@@ -39,21 +41,22 @@ export default function PatientCenter() {
     }
   }, [search]);
 
-  const sendToQueue = async (patient) => {
-    if (!window.confirm(`Send ${patient.first_name} ${patient.last_name} to the Doctor's Queue?`)) return;
-    setQueueing(patient.id);
+  const createEncounter = async (type) => {
+    if (!encounterPatient) return;
+    setQueueing(true);
     try {
       await opdService.createVisit({
-        patient_id: patient.id,
-        triage_priority: 'normal',
-        status: 'waiting',
-        visit_type: 'Walk-In',
+        patient_id: encounterPatient.id,
+        triage_priority: type === 'Emergency' ? 'emergency' : 'normal',
+        status: type === 'Follow-Up' ? 'in_consultation' : 'waiting', // Follow-up bypasses triage directly to opd queue? Or still wait? Lets just default:
+        visit_type: type,
       });
-      alert('Patient sent to OPD queue successfully!');
+      alert(`Encounter created: ${type}`);
+      setEncounterPatient(null);
     } catch (e) {
-      alert('Failed to send to queue: ' + e.message);
+      alert('Failed to create encounter: ' + e.message);
     } finally {
-      setQueueing(null);
+      setQueueing(false);
     }
   };
 
@@ -77,17 +80,17 @@ export default function PatientCenter() {
         )}
       </div>
 
-      <div className="card p-4 flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
+      <div className="flex flex-col sm:flex-row gap-3 items-center">
+        <div className="flex-1 relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, ID or phone…"
-            className="input pl-9"
+            className="input pl-9 bg-transparent border-slate-200 focus:bg-white"
           />
         </div>
-        <button onClick={loadPatients} className="btn-secondary">
+        <button onClick={loadPatients} className="btn-secondary whitespace-nowrap">
           <Refresh fontSize="small" /> Refresh
         </button>
       </div>
@@ -129,10 +132,9 @@ export default function PatientCenter() {
                        </button>
                       {role !== 'admin' && p.status === 'active' && (
                         <button 
-                          onClick={() => sendToQueue(p)} 
-                          disabled={queueing === p.id}
-                          className="bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 text-xs font-semibold py-1 px-3 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50">
-                          {queueing === p.id ? 'Sending...' : <><LocalHospital sx={{ fontSize: 14 }} /> To OPD</>}
+                          onClick={() => setEncounterPatient(p)} 
+                          className="bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 text-xs font-semibold py-1 px-3 rounded-lg transition-colors flex items-center gap-1">
+                          <LocalHospital sx={{ fontSize: 14 }} /> New Encounter
                         </button>
                       )}
                     </div>
@@ -155,12 +157,37 @@ export default function PatientCenter() {
       {/* Registration Modal */}
       {showForm && <PatientRegistrationModal userId={user?.id} onClose={() => setShowForm(false)} onSave={async (payload) => { await loadPatients(); setShowForm(false); }} />}
       
-      {/* History Modal */}
       {selectedHistoryPatient && (
         <PatientHistoryModal 
           patient={selectedHistoryPatient} 
           onClose={() => setSelectedHistoryPatient(null)} 
         />
+      )}
+
+      {/* Encounter Modal */}
+      {encounterPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+             <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                <h3 className="font-black text-slate-800">New Encounter</h3>
+                <button onClick={() => setEncounterPatient(null)}><Close className="text-slate-400"/></button>
+             </div>
+             <div className="p-6">
+                <p className="text-sm font-bold text-slate-500 mb-4 tracking-widest uppercase">Patient</p>
+                <p className="text-lg font-black text-slate-800 mb-6">{encounterPatient.first_name} {encounterPatient.last_name}</p>
+
+                <p className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Select Encounter Type</p>
+                <div className="space-y-2">
+                   {['Walk-In', 'Follow-Up', 'Emergency', 'Routine Clinic'].map(type => (
+                      <button key={type} onClick={() => createEncounter(type)} disabled={queueing}
+                        className="w-full text-left px-4 py-3 border border-slate-200 rounded-xl font-bold text-slate-700 hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                        {type}
+                      </button>
+                   ))}
+                </div>
+             </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -11,8 +11,7 @@ export const ipdService = {
   async listBeds(wardId = null) {
     let q = supabase
       .from('beds')
-      .select('*, wards(name, ward_type), admissions(*, patients(first_name, last_name, patient_no, age, gender))')
-      .eq('admissions.status', 'active');
+      .select('*, wards(name, ward_type)');
     if (wardId) q = q.eq('ward_id', wardId);
     const { data, error } = await q;
     if (error) throw error;
@@ -41,9 +40,24 @@ export const ipdService = {
   },
 
   async admit(payload) {
+    const { notes, ...admissionData } = payload;
+    
     if (payload.bed_id) await supabase.from('beds').update({ status: 'occupied' }).eq('id', payload.bed_id);
-    const { data, error } = await supabase.from('admissions').insert([payload]).select().single();
+    
+    const { data, error } = await supabase.from('admissions').insert([admissionData]).select().single();
     if (error) throw error;
+
+    // Save admission notes to clinical_notes if provided
+    if (notes) {
+      await this.addNote({
+        admission_id: data.id,
+        patient_id: payload.patient_id,
+        author_id: payload.admitted_by,
+        note_type: 'doctor',
+        note_text: `Initial Admission Notes: ${notes}`,
+        created_at: new Date().toISOString()
+      });
+    }
 
     // Update visit status so they are no longer in 'awaiting_admission' queue
     if (payload.visit_id) {

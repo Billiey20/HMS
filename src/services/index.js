@@ -18,3 +18,5 @@ export { billingService } from './billing.js';
 export { hrService } from './hr.js';
 // ── Settings ─────────────────────────────────────────────────────────────────
 export { settingsService } from './settings.js';
+// ── Analytics ─────────────────────────────────────────────────────────────────
+export { analyticsService } from './analytics.js';

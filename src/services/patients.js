@@ -35,24 +35,33 @@ export const patientService = {
   },
 
   async getFullHistory(patientId) {
-    const { data: visits } = await supabase
-      .from('opd_visits')
-      .select('*, consultations(*), lab_orders(*, lab_order_items(*, laboratory_items(name))), prescriptions(*, prescription_items(*, inventory_items(name)))')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false });
+    const [
+      { data: visits, error: vErr },
+      { data: admissions, error: aErr },
+      { data: vitals, error: vitErr },
+      { data: bills, error: bErr },
+      { data: prescriptions, error: rErr }
+    ] = await Promise.all([
+      supabase.from('opd_visits').select('*, consultations(*), lab_orders(*, lab_order_items(*))').eq('patient_id', patientId).order('created_at', { ascending: false }),
+      supabase.from('admissions').select('*, wards(name), clinical_notes(*), vitals_records(*)').eq('patient_id', patientId).order('admitted_at', { ascending: false }),
+      supabase.from('vitals_records').select('*').eq('patient_id', patientId).order('recorded_at', { ascending: false }),
+      supabase.from('bills').select('*, bill_items(*), payments(*)').eq('patient_id', patientId).order('created_at', { ascending: false }),
+      supabase.from('prescriptions').select('*, prescription_items(*)').eq('patient_id', patientId).order('prescribed_at', { ascending: false })
+    ]);
 
-    const { data: admissions } = await supabase
-      .from('admissions')
-      .select('*, wards(name), clinical_notes(*), vitals_records(*)')
-      .eq('patient_id', patientId)
-      .order('admitted_at', { ascending: false });
+    if (vErr) console.error("Visits Error:", vErr);
+    if (aErr) console.error("Admissions Error:", aErr);
+    if (vitErr) console.error("Vitals Error:", vitErr);
+    if (bErr) console.error("Bills Error:", bErr);
+    if (rErr) console.error("Prescriptions Error:", rErr);
 
-    const { data: vitals } = await supabase
-      .from('vitals_records')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('recorded_at', { ascending: false });
-
-    return { visits, admissions, vitals };
+    return { 
+      visits: visits || [], 
+      admissions: admissions || [], 
+      vitals: vitals || [], 
+      bills: bills || [],
+      prescriptions: prescriptions || [],
+      errors: { vErr, aErr, vitErr, bErr, rErr } 
+    };
   },
 };

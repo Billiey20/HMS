@@ -18,9 +18,7 @@ import Inventory from './pages/inventory/Inventory';
 import Laboratory from './pages/lab/Laboratory';
 import Billing from './pages/billing/Billing';
 import HR from './pages/hr/HR';
-import Reports from './pages/reports/Reports';
 import Settings from './pages/settings/Settings';
-import AdminDashboard from './pages/admin/AdminDashboard';
 import PriceList from './pages/admin/PriceList';
 
 // ── Route Guard (auth) ────────────────────────────────────────────────────────
@@ -85,7 +83,6 @@ export default function App() {
           <Route path="dashboard" element={<RoleGuard section="dashboard"><Dashboard /></RoleGuard>} />
 
           {/* Admin */}
-          <Route path="admin" element={<RoleGuard section="admin"><AdminDashboard /></RoleGuard>} />
           <Route path="admin/prices" element={<RoleGuard section="prices"><PriceList /></RoleGuard>} />
 
           {/* Reception / Patients */}
@@ -113,7 +110,6 @@ export default function App() {
           <Route path="inventory/receive" element={<RoleGuard section="inventory"><Inventory /></RoleGuard>} />
           <Route path="billing"           element={<RoleGuard section="billing"><Billing /></RoleGuard>} />
           <Route path="hr"                element={<RoleGuard section="hr"><HR /></RoleGuard>} />
-          <Route path="reports"           element={<RoleGuard section="reports"><Reports /></RoleGuard>} />
           <Route path="settings"          element={<RoleGuard section="settings"><Settings /></RoleGuard>} />
 
           {/* Catch-all */}

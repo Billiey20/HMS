@@ -22,7 +22,6 @@ const NAV = [
   {
     group: 'ADMIN',
     items: [
-      { to: '/admin',         label: 'Admin Overview', icon: AdminPanelSettings,  section: 'admin' },
       { to: '/admin/prices',  label: 'Price List',     icon: PriceCheck,          section: 'prices' },
     ],
   },
@@ -61,7 +60,6 @@ const NAV = [
       { to: '/inventory', label: 'Inventory', icon: Inventory,    section: 'inventory' },
       { to: '/billing',   label: 'Billing',   icon: ReceiptLong,  section: 'billing'   },
       { to: '/hr',        label: 'Staff / HR', icon: Group,       section: 'hr'        },
-      { to: '/reports',   label: 'Reports',   icon: BarChart,     section: 'reports'   },
     ],
   },
   {
@@ -171,7 +169,7 @@ export default function Layout() {
     </aside>
   );
 
-  const showSidebar = ['admin', 'hr', 'doctor', 'nurse', 'triage'].includes(role);
+  const showSidebar = ['admin', 'hr', 'doctor', 'nurse', 'triage', 'reception'].includes(role);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

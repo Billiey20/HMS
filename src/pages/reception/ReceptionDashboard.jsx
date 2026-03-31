@@ -3,6 +3,7 @@ import { Search, Add, Person, LocalHospital, Hotel, PriceCheck, FactCheck, Refre
 import { patientService, opdService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PatientRegistrationModal from '../../components/modals/PatientRegistrationModal';
+import PriceListModal from '../../components/modals/PriceListModal';
 
 function StatusBadge({ status }) {
   const map = {
@@ -19,6 +20,7 @@ export default function ReceptionDashboard() {
   const [patients, setPatients] = useState([]);
   const [search, setSearch]     = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showPrices, setShowPrices] = useState(false);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [queueing, setQueueing] = useState(null);
@@ -70,7 +72,7 @@ export default function ReceptionDashboard() {
 
   const quickActions = [
     { label: 'Register Patient', icon: Add, color: 'bg-primary-600', action: () => setShowForm(true) },
-    { label: 'Check Prices', icon: PriceCheck, color: 'bg-emerald-600', action: () => alert('Price List View (Read Only) coming soon') },
+    { label: 'Check Prices', icon: PriceCheck, color: 'bg-emerald-600', action: () => setShowPrices(true) },
     { label: 'Room Queues', icon: FactCheck, color: 'bg-blue-600', action: () => alert('Viewing queues currently handled by OPD') },
     { label: 'Ward Bed Map', icon: Hotel, color: 'bg-violet-600', action: () => window.location.href = '/ipd/wards' },
   ];
@@ -96,7 +98,7 @@ export default function ReceptionDashboard() {
       </div>
 
       {/* Patient Tracking Grid */}
-      <div className="card p-4 flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
           <input
@@ -184,6 +186,7 @@ export default function ReceptionDashboard() {
       </div>
 
       {showForm && <PatientRegistrationModal userId={user?.id} onClose={() => setShowForm(false)} onSave={async () => { await loadPatients(); setShowForm(false); }} />}
+      {showPrices && <PriceListModal onClose={() => setShowPrices(false)} />}
     </div>
   );
 }

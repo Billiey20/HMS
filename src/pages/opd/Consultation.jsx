@@ -7,6 +7,7 @@ import {
 
 import { useAuth } from '../../context/AuthContext';
 import { consultationService, labService, opdService } from '../../services';
+import LabReportPreview from '../../components/modals/LabReportPreview';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = ['Triage & Vitals', 'Clinical History', 'Examination', 'Lab & Imaging Orders', 'Diagnosis & Plan', 'Prescriptions', 'Clinical Decision'];
@@ -195,6 +196,7 @@ export default function Consultation() {
   const [activeTab, setActiveTab] = useState(0);
   const [saved, setSaved]         = useState(false);
   const [loadingDraft, setLoadingDraft] = useState(true);
+  const [previewItem, setPreviewItem]   = useState(null);
 
   // 0. Triage & Vitals
   const vitals = {
@@ -545,7 +547,9 @@ export default function Consultation() {
                               <span className="font-bold text-sm text-slate-700">{item.test_name}</span>
                               <div className="text-sm mt-1 sm:mt-0">
                                 {item.status === 'completed' ? (
-                                  <span className="font-bold text-primary-700 bg-primary-50 px-3 py-1.5 rounded-lg border border-primary-100/50 shadow-sm">{item.result || 'Negative / Normal'}</span>
+                                  <button onClick={() => setPreviewItem({ ...item, lab_orders: { patients: order.patients, ordered_at: order.ordered_at, ordered_by: order.ordered_by, urgency: order.urgency } })} className="px-3 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 font-bold border border-primary-100/50 rounded-lg shadow-sm transition-colors text-xs">
+                                     View Report
+                                  </button>
                                 ) : (
                                   <span className="text-amber-500 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
                                     <HourglassEmpty sx={{fontSize: 14}}/> Processing
@@ -683,6 +687,7 @@ export default function Consultation() {
           </button>
         </div>
       </div>
+      {previewItem && <LabReportPreview item={previewItem} onClose={() => setPreviewItem(null)} />}
     </div>
   );
 }

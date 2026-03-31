@@ -1,251 +1,420 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Close, Person, History, LocalHospital, Science, 
-  Medication, Description, Thermostat, Favorite, 
-  Hotel, ArrowBack, TrendingUp 
+  Medication, Description, ArrowDropDown, ArrowRight,
+  TrendingFlat, Thermostat, Receipt
 } from '@mui/icons-material';
 import { patientService } from '../../services/patients';
 
 export default function PatientHistoryModal({ patient, onClose }) {
-  const [history, setHistory] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]     = useState(true);
+  const [encounters, setEncounters] = useState([]);
+  const [apiError, setApiError]     = useState('');
+  
+  // State for Accordion expansions
+  const [expandedEncounter, setExpandedEncounter] = useState(null);
+  const [expandedEvent, setExpandedEvent]         = useState(null);
 
   useEffect(() => {
     if (patient?.id) {
-       patientService.getFullHistory(patient.id).then(data => {
-         setHistory(data);
-         setLoading(false);
-       });
+       loadHistoryData();
     }
   }, [patient]);
+
+  const loadHistoryData = async () => {
+    try {
+      setApiError('');
+      const data = await patientService.getFullHistory(patient.id);
+      
+      const errs = data.errors;
+      if (errs?.vErr || errs?.aErr || errs?.vitErr || errs?.bErr || errs?.rErr) {
+        setApiError(JSON.stringify(errs, null, 2));
+      }
+      
+      // We will map data.visits and data.admissions into a unified "Encounters" array.
+      const builtEncounters = [];
+
+      // 1. Process OPD Visits (Outpatient, FollowUp, Walk-in, etc)
+      (data.visits || []).forEach(v => {
+        const events = [];
+        
+        // Triage Vitals 
+        // Notice: `vitals_records` might be independently queried if it doesn't have opd_visit_id, 
+        // but let's map loosely by finding vitals close in time, OR we assume data.vitals is flat.
+        // For accurate Encounter->Event mappings, we gather all matching foreign keys.
+        const vVitals = (data.vitals || []).filter(vit => vit.opd_visit_id === v.id || 
+            (new Date(vit.recorded_at) >= new Date(v.created_at) && (!v.closed_at || new Date(vit.recorded_at) <= new Date(v.closed_at))));
+        
+        vVitals.forEach(vit => {
+          events.push({
+            id: vit.id, type: 'triage', time: vit.recorded_at, title: 'Triage / Vitals',
+            data: vit
+          });
+        });
+
+        // Consultations
+        (v.consultations || []).forEach(c => {
+          events.push({
+            id: c.id, type: 'consultation', time: c.created_at, title: 'Consultation',
+            data: c
+          });
+
+          // Prescriptions: Match from the top-level data.prescriptions array
+          const vPrescriptions = (data.prescriptions || []).filter(rx => rx.consultation_id === c.id || rx.visit_id === v.id);
+          vPrescriptions.forEach(rx => {
+            events.push({
+              id: rx.id, type: 'pharmacy', time: rx.prescribed_at, title: 'Prescription Added',
+              data: rx
+            });
+          });
+        });
+
+        // Lab Orders
+        (v.lab_orders || []).forEach(lo => {
+          events.push({
+            id: lo.id, type: 'lab', time: lo.created_at, title: 'Laboratory Request',
+            data: lo
+          });
+        });
+
+        // Bills
+        const vBills = (data.bills || []).filter(b => b.visit_id === v.id);
+        vBills.forEach(b => {
+          events.push({
+             id: b.id, type: 'billing', time: b.created_at, title: 'Billing Generation',
+             data: b
+          });
+        });
+
+        builtEncounters.push({
+          id: v.id,
+          type: v.visit_type || 'Outpatient',
+          summary: v.status === 'completed' ? 'Completed Visit' : 'Active Encounter',
+          start_time: v.created_at,
+          status: v.status,
+          events: events.sort((a,b) => new Date(b.time) - new Date(a.time)) // newest event first
+        });
+      });
+
+      // 2. Process Admissions (IPD)
+      (data.admissions || []).forEach(a => {
+         const events = [];
+         
+         // Admission Event
+         events.push({
+            id: `${a.id}-adm`, type: 'admission', time: a.admitted_at, title: 'Patient Admitted to Ward',
+            data: a
+         });
+
+         // Nursing Notes (assume clinical_notes exists mapped)
+         (a.clinical_notes || []).forEach(cn => {
+            events.push({
+               id: cn.id, type: 'clinical_note', time: cn.created_at, title: 'Nursing / Doctor Note',
+               data: cn
+            });
+         });
+
+         // Vitals from ward
+         (a.vitals_records || []).forEach(vit => {
+            events.push({
+               id: vit.id, type: 'triage', time: vit.recorded_at, title: 'Ward Vitals Round',
+               data: vit
+            });
+         });
+
+         builtEncounters.push({
+            id: a.id,
+            type: 'Inpatient (IPD)',
+            summary: `Admitted to ${a.wards?.name}`,
+            start_time: a.admitted_at,
+            status: a.status,
+            events: events.sort((a,b) => new Date(b.time) - new Date(a.time))
+         });
+      });
+
+      // Sort all encounters by date descending
+      builtEncounters.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+
+      // Auto-expand the most recent encounter if it exists
+      if (builtEncounters.length > 0) {
+         setExpandedEncounter(builtEncounters[0].id);
+      }
+
+      setEncounters(builtEncounters);
+      setLoading(false);
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+    }
+  };
+
+  const toggleEncounter = (encId) => {
+    if (expandedEncounter === encId) setExpandedEncounter(null);
+    else setExpandedEncounter(encId);
+  };
+
+  const toggleEvent = (eventId) => {
+    if (expandedEvent === eventId) setExpandedEvent(null);
+    else setExpandedEvent(eventId);
+  };
+
+  const renderEventDetails = (event) => {
+     const { type, data } = event;
+
+     if (type === 'triage') {
+        return (
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl text-sm border border-slate-200">
+              <div><p className="text-slate-500 text-xs uppercase font-bold">Temp</p><p className="font-semibold text-slate-800">{data.temperature || '—'} °C</p></div>
+              <div><p className="text-slate-500 text-xs uppercase font-bold">Pulse</p><p className="font-semibold text-slate-800">{data.pulse || '—'} bpm</p></div>
+              <div><p className="text-slate-500 text-xs uppercase font-bold">BP</p><p className="font-semibold text-slate-800">{data.bp_systolic}/{data.bp_diastolic} mmHg</p></div>
+              <div><p className="text-slate-500 text-xs uppercase font-bold">Weight</p><p className="font-semibold text-slate-800">{data.weight || '—'} kg</p></div>
+              {data.notes && <div className="col-span-full mt-2"><p className="text-slate-500 text-xs uppercase font-bold">Notes</p><p className="italic text-slate-700">{data.notes}</p></div>}
+           </div>
+        );
+     }
+
+     if (type === 'consultation') {
+        return (
+           <div className="space-y-4 bg-blue-50/50 p-4 rounded-xl text-sm border border-blue-100">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                   <p className="text-blue-500 text-xs uppercase font-bold tracking-wider mb-1">Diagnosis</p>
+                   <p className="font-black text-slate-800">{data.diagnosis || 'None specified'}</p>
+                </div>
+             </div>
+             <div>
+                <p className="text-blue-500 text-xs uppercase font-bold tracking-wider mb-1">Clinical Notes & Examination</p>
+                <p className="font-semibold text-slate-700 whitespace-pre-wrap">{data.clinical_notes || 'No notes available'}</p>
+             </div>
+           </div>
+        );
+     }
+
+     if (type === 'lab') {
+        return (
+           <div className="bg-violet-50/50 p-4 rounded-xl text-sm border border-violet-100 space-y-3">
+              <div className="flex justify-between items-center mb-2">
+                 <p className="text-violet-500 text-xs uppercase font-bold tracking-wider">Ordered Tests</p>
+                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${data.status === 'completed' ? 'bg-violet-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                    {data.status}
+                 </span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-slate-700 font-medium">
+                 {data.lab_order_items?.map(item => (
+                    <li key={item.id}>
+                       {item.test_name || 'Unknown Test'}
+                       {item.result && <span className="ml-2 font-black text-violet-700">➡ {item.result}</span>}
+                    </li>
+                 ))}
+                 {(!data.lab_order_items || data.lab_order_items.length === 0) && <li>No tests found</li>}
+              </ul>
+              {data.results_summary && (
+                 <div className="mt-2 pt-2 border-t border-violet-200">
+                    <p className="text-violet-500 text-xs uppercase font-bold mb-1">Pathologist Summary</p>
+                    <p className="italic text-slate-700">{data.results_summary}</p>
+                 </div>
+              )}
+           </div>
+        );
+     }
+
+     if (type === 'pharmacy') {
+        return (
+           <div className="bg-emerald-50/50 p-4 rounded-xl text-sm border border-emerald-100">
+              <p className="text-emerald-500 text-xs uppercase font-bold tracking-wider mb-2">Prescribed Medication</p>
+              <div className="space-y-2">
+                 {data.prescription_items?.map(item => (
+                    <div key={item.id} className="flex justify-between items-center bg-white p-2 rounded-lg border border-emerald-100 shadow-sm">
+                       <div>
+                          <p className="font-bold text-slate-800">{item.drug_catalog?.name || item.drug_name}</p>
+                          <p className="text-xs text-slate-500">{item.dosage} · {item.frequency} · {item.duration}</p>
+                       </div>
+                       <p className="font-black text-emerald-700">{item.quantity} units</p>
+                    </div>
+                 ))}
+                 {(!data.prescription_items || data.prescription_items.length === 0) && <p className="text-slate-500">No items prescribed.</p>}
+              </div>
+           </div>
+        );
+     }
+
+     if (type === 'admission') {
+        return (
+           <div className="bg-amber-50/50 p-4 rounded-xl text-sm border border-amber-100">
+              <p className="text-amber-500 text-xs uppercase font-bold tracking-wider mb-2">Admission Details</p>
+              <p className="font-bold text-slate-800">Ward: {data.wards?.name || 'N/A'}</p>
+              <p className="text-slate-600">Bed: {data.bed_no || 'Pending'}</p>
+              {data.discharge_date && <p className="mt-2 font-bold text-slate-700">Discharged: {new Date(data.discharge_date).toLocaleString()}</p>}
+           </div>
+        );
+     }
+     
+     if (type === 'billing') {
+        return (
+           <div className="bg-slate-50 flex items-center gap-3 p-4 rounded-xl text-sm border border-slate-200">
+              <Receipt className="text-slate-400" />
+              <div>
+                 <p className="font-bold text-slate-800">Bill Total: KES {data.total_amount}</p>
+                 <p className="text-slate-500 text-xs">Status: <span className="uppercase">{data.status}</span></p>
+              </div>
+           </div>
+        );
+     }
+
+     return <div className="p-4 bg-slate-50 rounded-xl text-sm italic text-slate-500">Details not available for this event type.</div>;
+  };
 
   if (!patient) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-hidden">
-      <div className="bg-slate-50 w-full max-w-5xl h-full max-h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/20 animate-in fade-in zoom-in duration-300">
+    <div className="fixed inset-0 z-50 flex flex-col items-center p-0 md:p-6 bg-slate-900/80 backdrop-blur-sm sm:justify-center overflow-hidden">
+      <div className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-5xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
         
-        {/* Header */}
-        <div className="bg-white px-8 py-6 border-b border-slate-200 flex items-center justify-between shadow-sm relative">
-           <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center border border-primary-100 shadow-inner">
-                 <Person className="text-primary-600" sx={{ fontSize: 32 }} />
+        {/* Core Header (Primary Theme) */}
+        <div className="bg-primary-600 px-6 py-6 border-b border-primary-500 flex items-center justify-between shrink-0">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center border border-white/10">
+                 <Person className="text-white" />
               </div>
               <div>
-                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">{patient.first_name} {patient.last_name}</h2>
-                 <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{patient.patient_no} · {patient.age}Y · {patient.gender}</p>
+                 <h2 className="text-xl font-black text-white tracking-tight">{patient.first_name} {patient.last_name}</h2>
+                 <p className="text-xs font-bold text-primary-100 uppercase tracking-widest">{patient.patient_no} · {patient.age}Y · {patient.gender}</p>
               </div>
            </div>
-           <button onClick={onClose} className="w-12 h-12 rounded-2xl hover:bg-slate-100 flex items-center justify-center transition-all active:scale-90">
-              <Close className="text-slate-400" />
+           <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/20 flex items-center justify-center transition-all bg-white/10 border border-white/10 text-white">
+              <Close />
            </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 relative no-scrollbar">
+        {/* Timeline Content Engine */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8 no-scrollbar relative">
            {loading ? (
              <div className="h-full flex flex-col items-center justify-center opacity-30">
                 <History className="animate-spin-slow mb-4" sx={{ fontSize: 48 }} />
-                <p className="font-black uppercase tracking-widest text-xs">Aggregating Clinical Data...</p>
+                <p className="font-black uppercase tracking-widest text-xs">Reconstructing Event History...</p>
+             </div>
+           ) : apiError ? (
+             <div className="max-w-3xl mx-auto space-y-4">
+               <div className="bg-red-50 p-6 rounded-2xl border border-red-200">
+                 <h3 className="text-red-800 font-bold mb-2">Database Schema Error Detected</h3>
+                 <pre className="text-xs text-red-600 overflow-x-auto whitespace-pre-wrap font-mono uppercase tracking-widest">
+                   {apiError}
+                 </pre>
+               </div>
              </div>
            ) : (
-             <div className="max-w-3xl mx-auto">
-                <div className="relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-1 before:bg-slate-200/50 before:rounded-full">
+             <div className="max-w-3xl mx-auto space-y-4">
+                
+                {encounters.length === 0 && (
+                   <div className="p-12 text-center text-slate-400">
+                     <History sx={{ fontSize: 64 }} className="mb-4 opacity-20" />
+                     <p className="font-bold">No encounters registered for this patient yet.</p>
+                   </div>
+                )}
+
+                {/* Level 1: Encounters List */}
+                {encounters.map((encounter) => {
+                   const isExpandedEnc = expandedEncounter === encounter.id;
                    
-                   {/* ── Registration ────────────────────────────────────── */}
-                   <TimelineItem 
-                     icon={Description} 
-                     color="bg-emerald-500" 
-                     date={patient.created_at} 
-                     title="Patient Registration"
-                     subtitle="System Initialization"
-                   >
-                     <p className="text-sm font-bold text-slate-600 italic">"Welcome to the HMS family. Demographic and contact data captured."</p>
-                   </TimelineItem>
+                   return (
+                     <div key={encounter.id} className={`bg-white rounded-2xl border transition-shadow ${isExpandedEnc ? 'border-primary-300 shadow-md ring-1 ring-primary-100' : 'border-slate-200 hover:border-slate-300 shadow-sm'}`}>
+                        {/* Encounter Header (Clickable) */}
+                        <div onClick={() => toggleEncounter(encounter.id)} className="px-6 py-4 cursor-pointer flex items-center justify-between group">
+                           <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isExpandedEnc ? 'bg-primary-600' : 'bg-slate-100 group-hover:bg-primary-100'}`}>
+                                 <LocalHospital className={isExpandedEnc ? 'text-white' : 'text-slate-500 group-hover:text-primary-600'} fontSize="small" />
+                              </div>
+                              <div>
+                                 <p className="text-xs font-bold tracking-widest uppercase text-slate-400 mb-0.5">Encounter // {encounter.status}</p>
+                                 <h4 className="text-lg font-black text-slate-800">{encounter.type}</h4>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-4 text-right">
+                              <div className="hidden sm:block">
+                                 <p className="font-bold text-slate-700">{new Date(encounter.start_time).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                 <p className="text-xs text-slate-400 font-semibold">{new Date(encounter.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                              </div>
+                              <ArrowDropDown className={`text-slate-400 transition-transform ${isExpandedEnc ? 'rotate-180' : ''}`} />
+                           </div>
+                        </div>
 
-                   {/* ── Chronological Events ─────────────────────────────── */}
-                   {getSortedTimeline(history).map((event, idx) => (
-                     <TimelineEvent key={idx} event={event} />
-                   ))}
+                        {/* Level 2: Events List (Revealed if Encounter expands) */}
+                        {isExpandedEnc && (
+                           <div className="border-t border-slate-100 bg-slate-50/50 p-4 md:p-6 pb-8">
+                              {encounter.events.length === 0 ? (
+                                 <p className="text-center text-sm text-slate-400 py-4 italic">No specific events recorded during this encounter.</p>
+                              ) : (
+                                 <div className="relative before:absolute before:inset-0 before:ml-5 before:w-0.5 before:bg-slate-200">
+                                    <div className="space-y-6 relative">
+                                       {encounter.events.map((evt) => {
+                                          const isExpandedEvt = expandedEvent === evt.id;
+                                          
+                                          // Map icons and colors
+                                          const EVENT_ICONS = {
+                                            triage: { icon: Thermostat, color: 'text-emerald-500', bg: 'bg-emerald-100' },
+                                            consultation: { icon: Person, color: 'text-blue-500', bg: 'bg-blue-100' },
+                                            lab: { icon: Science, color: 'text-violet-500', bg: 'bg-violet-100' },
+                                            pharmacy: { icon: Medication, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+                                            billing: { icon: Receipt, color: 'text-amber-500', bg: 'bg-amber-100' },
+                                            admission: { icon: LocalHospital, color: 'text-rose-500', bg: 'bg-rose-100' },
+                                            clinical_note: { icon: Description, color: 'text-sky-500', bg: 'bg-sky-100' },
+                                          };
+                                          
+                                          const style = EVENT_ICONS[evt.type] || { icon: Description, color: 'text-slate-500', bg: 'bg-slate-100' };
+                                          const IconCmp = style.icon;
 
-                </div>
+                                          return (
+                                            <div key={evt.id} className="relative flex items-start">
+                                               
+                                               <div className="absolute left-0 mt-[1.2rem] w-10 h-10 rounded-full bg-white border-2 border-slate-200 z-10 flex items-center justify-center shadow-sm -ml-0.5">
+                                                  <div className="w-4 h-4 rounded-full bg-slate-300" />
+                                               </div>
+
+                                               {/* Row Container (De-containerized) */}
+                                               <div className="ml-14 w-full group">
+                                                  <div className="w-full bg-transparent hover:bg-slate-100/70 rounded-xl transition-all duration-300">
+                                                     
+                                                     {/* Abstract Event Header (Row Style) */}
+                                                     <div onClick={() => toggleEvent(evt.id)} className="p-4 cursor-pointer flex items-center gap-3">
+                                                        <div className={`w-8 h-8 shrink-0 rounded-lg ${style.bg} flex items-center justify-center shadow-sm`}>
+                                                           <IconCmp className={style.color} sx={{ fontSize: 16 }} />
+                                                        </div>
+                                                        <div className="flex-1 flex items-center justify-between min-w-0 pr-2">
+                                                           <div>
+                                                              <h5 className="font-bold text-slate-800 text-sm truncate">{evt.title}</h5>
+                                                              <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+                                                                {new Date(evt.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                              </p>
+                                                           </div>
+                                                           <ArrowRight className={`text-slate-300 shrink-0 transition-transform ${isExpandedEvt ? 'rotate-90 text-primary-500' : 'group-hover:text-slate-400'}`} fontSize="small" />
+                                                        </div>
+                                                     </div>
+
+                                                     {/* Level 3: Event Deep-Dive Details */}
+                                                     {isExpandedEvt && (
+                                                        <div className="px-4 pb-5 pt-1 animate-in slide-in-from-top-1 duration-200">
+                                                           {renderEventDetails(evt)}
+                                                        </div>
+                                                     )}
+
+                                                  </div>
+                                               </div>
+                                            </div>
+                                          );
+                                       })}
+                                    </div>
+                                 </div>
+                              )}
+                           </div>
+                        )}
+                     </div>
+                   );
+                })}
+
              </div>
            )}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-white px-8 py-5 border-t border-slate-200 text-center">
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2">
-              <History sx={{ fontSize: 14 }} /> 
-              Clinical records are secured and encrypted. End of history.
-           </p>
         </div>
       </div>
     </div>
   );
-}
-
-function TimelineItem({ icon: Icon, color, date, title, subtitle, children }) {
-  return (
-    <div className="mb-12 relative pl-24 group">
-       {/* Pin */}
-       <div className={`absolute left-4 top-0 w-10 h-10 rounded-2xl ${color} flex items-center justify-center z-10 shadow-lg shadow-${color.split('-')[1]}-500/30 ring-4 ring-white transition-transform group-hover:scale-110`}>
-          <Icon className="text-white" sx={{ fontSize: 20 }} />
-       </div>
-
-       {/* Bubble */}
-       <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative transition-all group-hover:shadow-xl group-hover:ring-1 group-hover:ring-slate-200">
-          <div className="flex justify-between items-start mb-4">
-             <div>
-                <h4 className="font-black text-slate-800 tracking-tight leading-tight uppercase text-xs">{title}</h4>
-                <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase mt-0.5">{subtitle}</p>
-             </div>
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter bg-slate-50 px-2 py-1 rounded-lg">
-                {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br/>
-                {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-             </p>
-          </div>
-          <div className="space-y-4">
-             {children}
-          </div>
-       </div>
-    </div>
-  );
-}
-
-function TimelineEvent({ event }) {
-   if (event.type === 'visit') {
-      const v = event.data;
-      return (
-         <TimelineItem 
-           icon={LocalHospital} 
-           color="bg-primary-500" 
-           date={v.created_at} 
-           title={`OPD Consultation — ${v.visit_no}`}
-           subtitle="Outpatient Department"
-         >
-           <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 p-3 rounded-2xl">
-                 <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Diagnosis</p>
-                 <p className="text-xs font-black text-slate-700">{v.consultations?.[0]?.diagnosis || 'No diagnosis recorded'}</p>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-2xl">
-                 <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Clinic</p>
-                 <p className="text-xs font-black text-slate-700">General OPD</p>
-              </div>
-           </div>
-           
-           {v.consultations?.[0]?.clinical_notes && (
-             <div>
-                <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Clinician Notes</p>
-                <div className="border-l-2 border-primary-200 pl-3">
-                   <p className="text-xs font-semibold text-slate-600 italic">"{v.consultations[0].clinical_notes}"</p>
-                </div>
-             </div>
-           )}
-
-           {v.lab_orders?.length > 0 && (
-             <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase text-slate-400">Investigations Ordered</p>
-                <div className="flex flex-wrap gap-2">
-                   {v.lab_orders.flatMap(o => o.lab_order_items).map((it, i) => (
-                      <span key={i} className="px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-[10px] font-black uppercase border border-violet-100">
-                         {it.laboratory_items?.name}
-                      </span>
-                   ))}
-                </div>
-             </div>
-           )}
-           
-           {v.prescriptions?.length > 0 && (
-             <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase text-slate-400">Medications Given</p>
-                <div className="flex flex-wrap gap-2">
-                   {v.prescriptions.flatMap(p => p.prescription_items).map((it, i) => (
-                      <span key={i} className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-[10px] font-black uppercase border border-amber-100">
-                         {it.inventory_items?.name} · {it.dosage}
-                      </span>
-                   ))}
-                </div>
-             </div>
-           )}
-         </TimelineItem>
-      );
-   }
-
-   if (event.type === 'admission') {
-      const a = event.data;
-      return (
-         <TimelineItem 
-           icon={Hotel} 
-           color="bg-indigo-600" 
-           date={a.admitted_at} 
-           title={`Ward Admission — ADM-${a.id.slice(0,5)}`}
-           subtitle={`${a.wards?.name} · BED ${a.bed_no}`}
-         >
-           <div className="bg-indigo-50/50 p-4 rounded-[2rem] border border-indigo-100">
-              <p className="text-[10px] font-black uppercase text-indigo-400 mb-2">Admitting Diagnosis</p>
-              <p className="text-sm font-black text-indigo-900 mb-4">{a.admitting_diagnosis}</p>
-              
-              {a.clinical_notes?.length > 0 && (
-                <div className="space-y-3">
-                   <p className="text-[10px] font-black uppercase text-indigo-400">Ward Progress Notes ({a.clinical_notes.length})</p>
-                   {a.clinical_notes.slice(0, 3).map((n, i) => (
-                      <div key={i} className="bg-white/80 p-3 rounded-2xl border border-indigo-50 shadow-sm relative">
-                         <div className="flex justify-between mb-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400">{n.note_type}</span>
-                            <span className="text-[9px] font-bold text-slate-400">{new Date(n.created_at).toLocaleDateString()}</span>
-                         </div>
-                         <p className="text-xs font-semibold text-slate-600 italic">"{n.note_text.slice(0, 100)}{n.note_text.length > 100 ? '...' : ''}"</p>
-                      </div>
-                   ))}
-                </div>
-              )}
-           </div>
-         </TimelineItem>
-      );
-   }
-
-   if (event.type === 'vitals') {
-      const vit = event.data;
-      return (
-         <TimelineItem 
-           icon={TrendingUp} 
-           color="bg-slate-800" 
-           date={vit.recorded_at} 
-           title="Vital Signs Recorded"
-           subtitle="Triage / Nursing Round"
-         >
-           <div className="flex flex-wrap gap-3">
-              <VitalPill icon={Thermostat} label="TEMP" value={`${vit.temperature}°C`} />
-              <VitalPill icon={Favorite}   label="BP"   value={`${vit.bp_systolic}/${vit.bp_diastolic}`} />
-              <VitalPill icon={ArrowBack}   label="SPO2" value={`${vit.oxygen_saturation}%`} />
-              <VitalPill icon={Favorite}   label="PULSE" value={`${vit.pulse_rate} bpm`} />
-           </div>
-         </TimelineItem>
-      );
-   }
-
-   return null;
-}
-
-function VitalPill({ icon: Icon, label, value }) {
-   return (
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl">
-         <Icon className="text-primary-500" sx={{ fontSize: 12 }} />
-         <span className="text-[9px] font-black text-slate-400 tracking-widest">{label}</span>
-         <span className="text-xs font-black text-slate-800">{value}</span>
-      </div>
-   );
-}
-
-function getSortedTimeline(history) {
-   if (!history) return [];
-   const items = [];
-   
-   history.visits?.forEach(v => items.push({ type: 'visit', date: v.created_at, data: v }));
-   history.admissions?.forEach(a => items.push({ type: 'admission', date: a.admitted_at, data: a }));
-   history.vitals?.forEach(vit => items.push({ type: 'vitals', date: vit.recorded_at, data: vit }));
-   
-   return items.sort((a,b) => new Date(b.date) - new Date(a.date));
 }

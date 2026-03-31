@@ -17,12 +17,69 @@ export const pharmacyService = {
       .eq('is_active', true)
       .order('name');
     if (error) throw error;
+    
+    // Flatten stock out
+    return data.map(d => ({
+      ...d,
+      current_qty: d.current_stock || d.drug_stock?.reduce((acc, rs) => acc + (rs.quantity||0), 0) || 0,
+    }));
+  },
+
+  async createDrug(payload) {
+    const { data, error } = await supabase.from('drug_catalog').insert([{
+      name: payload.name, category: payload.category || 'General', form: payload.unit || 'tablets',
+      reorder_level: payload.reorder_level || 0, selling_price: payload.unit_cost || 0,
+      is_active: true,
+    }]).select().single();
+    if (error) throw error;
     return data;
+  },
+
+  async receiveStock(drugId, qty, meta) {
+    // Insert into drug_stock 
+    const { error: insertErr } = await supabase.from('drug_stock').insert([{
+      drug_id: drugId,
+      quantity: qty,
+      batch_no: meta.batchNo || '-',
+      expiry_date: meta.expiry || null,
+      purchase_price: parseFloat(meta.cost) || 0,
+      received_at: new Date().toISOString()
+    }]);
+    if(insertErr) throw insertErr;
+
+    // Update aggregate
+    const { data: cat } = await supabase.from('drug_catalog').select('current_stock').eq('id', drugId).single();
+    await supabase.from('drug_catalog').update({
+       current_stock: (cat?.current_stock || 0) + qty
+    }).eq('id', drugId);
+
+    // Track transaction natively
+    await supabase.from('inventory_transactions').insert([{
+      item_id: null,
+      notes: `Drug ID ${drugId} - ${meta.batchNo}`,
+      txn_type: 'receive', quantity: qty,
+      cost: parseFloat(meta.cost) || 0, performed_by: meta.userId,
+    }]);
   },
 
   async dispense(prescriptionId, itemUpdates, allDone) {
     for (const upd of itemUpdates) {
-      await supabase.from('prescription_items').update({ quantity_dispensed: upd.dispensed }).eq('id', upd.id);
+      if(!upd.toDispense) continue;
+      // 1. Mark dispensed locally
+      const { data: pi } = await supabase.from('prescription_items').select('quantity_dispensed').eq('id', upd.id).single();
+      await supabase.from('prescription_items')
+        .update({ quantity_dispensed: (pi?.quantity_dispensed || 0) + upd.toDispense })
+        .eq('id', upd.id);
+
+      // 2. Reduce aggregate stock from drug_catalog (if drug is linked)
+      if (upd.drug_id) {
+        const { data: dc } = await supabase.from('drug_catalog').select('current_stock').eq('id', upd.drug_id).single();
+        if(dc) {
+           await supabase.from('drug_catalog').update({
+              current_stock: Math.max(0, (dc.current_stock || 0) - upd.toDispense)
+           }).eq('id', upd.drug_id);
+        }
+      }
     }
     await supabase.from('prescriptions').update({
       status: allDone ? 'dispensed' : 'partial',

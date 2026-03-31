@@ -10,6 +10,18 @@ export const inventoryService = {
     return data;
   },
 
+  async createItem(payload) {
+    const { data, error } = await supabase.from('inventory_items').insert([{
+      name: payload.name, 
+      category: payload.category, 
+      unit: payload.unit, 
+      reorder_level: payload.reorder_level, 
+      current_qty: payload.current_qty || 0
+    }]).select().single();
+    if (error) throw error;
+    return data;
+  },
+
   async receive(itemId, qty, meta) {
     const { data: item } = await supabase.from('inventory_items').select('current_qty').eq('id', itemId).single();
     await supabase.from('inventory_items').update({ current_qty: (item?.current_qty || 0) + qty }).eq('id', itemId);

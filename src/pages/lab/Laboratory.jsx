@@ -6,76 +6,11 @@ import {
 } from '@mui/icons-material';
 import { labService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-
-// ── Test result templates ─────────────────────────────────────────────────────
-const TEST_TEMPLATES = {
-  'Full Haemogram / CBC': [
-    { name: 'WBC',         unit: '×10³/μL', refLow: 4.0,  refHigh: 11.0, type: 'number' },
-    { name: 'RBC',         unit: '×10⁶/μL', refLow: 4.2,  refHigh: 5.4,  type: 'number' },
-    { name: 'Haemoglobin', unit: 'g/dL',    refLow: 11.5, refHigh: 17.5, type: 'number' },
-    { name: 'HCT',         unit: '%',        refLow: 37,   refHigh: 52,   type: 'number' },
-    { name: 'MCV',         unit: 'fL',       refLow: 80,   refHigh: 100,  type: 'number' },
-    { name: 'MCH',         unit: 'pg',       refLow: 27,   refHigh: 33,   type: 'number' },
-    { name: 'MCHC',        unit: 'g/dL',     refLow: 32,   refHigh: 36,   type: 'number' },
-    { name: 'Platelets',   unit: '×10³/μL',  refLow: 150,  refHigh: 400,  type: 'number' },
-    { name: 'Neutrophils', unit: '%',        refLow: 45,   refHigh: 75,   type: 'number' },
-    { name: 'Lymphocytes', unit: '%',        refLow: 20,   refHigh: 40,   type: 'number' },
-  ],
-  'Urinalysis (UA)': [
-    { name: 'Colour',        unit: '', refText: 'Yellow',   type: 'select', options: ['Yellow','Pale yellow','Dark yellow','Amber','Orange','Red','Brown','Clear'] },
-    { name: 'Appearance',    unit: '', refText: 'Clear',    type: 'select', options: ['Clear','Slightly turbid','Turbid','Cloudy'] },
-    { name: 'pH',            unit: '', refLow: 4.5, refHigh: 8.0, type: 'number' },
-    { name: 'Specific Gravity', unit: '', refLow: 1.005, refHigh: 1.030, type: 'number' },
-    { name: 'Protein',       unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Glucose',       unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Nitrites',      unit: '', refText: 'Negative', type: 'select', options: ['Negative','Positive'] },
-    { name: 'Leucocytes',    unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Blood',         unit: '', refText: 'Negative', type: 'select', options: ['Negative','Trace','+1','+2','+3'] },
-    { name: 'Pus Cells',     unit: '/HPF', refText: '0-4', type: 'text' },
-    { name: 'RBCs',          unit: '/HPF', refText: '0-2', type: 'text' },
-  ],
-  'Random Blood Sugar (RBS)': [
-    { name: 'Blood Glucose (Random)', unit: 'mmol/L', refLow: 3.9, refHigh: 11.1, type: 'number' },
-  ],
-  'Malaria RDT': [
-    { name: 'P. falciparum Ag (HRP-2)', unit: '', refText: 'Negative', type: 'select', options: ['Negative','Positive'] },
-    { name: 'Pan-Malaria Ag (pLDH)',    unit: '', refText: 'Negative', type: 'select', options: ['Negative','Positive'] },
-  ],
-  'HIV 1 & 2 Antibody Test': [
-    { name: 'HIV 1 & 2 Ab (Screen)', unit: '', refText: 'Non-reactive', type: 'select', options: ['Non-reactive','Reactive'] },
-    { name: 'Final Result',           unit: '', refText: 'Negative',     type: 'select', options: ['Negative','Positive','Indeterminate'] },
-  ],
-  'Urea, Electrolytes & Creatinine (UECs)': [
-    { name: 'Sodium (Na⁺)',   unit: 'mmol/L', refLow: 136, refHigh: 145, type: 'number' },
-    { name: 'Potassium (K⁺)', unit: 'mmol/L', refLow: 3.5, refHigh: 5.1, type: 'number' },
-    { name: 'Urea',           unit: 'mmol/L', refLow: 2.5, refHigh: 7.5, type: 'number' },
-    { name: 'Creatinine',     unit: 'μmol/L', refLow: 62,  refHigh: 115, type: 'number' },
-    { name: 'eGFR',           unit: 'mL/min/1.73m²', refLow: 60, refHigh: 120, type: 'number' },
-  ],
-  'Stool Analysis': [
-    { name: 'Colour',      unit: '', refText: 'Brown',    type: 'select', options: ['Brown','Yellow','Green','Black','Red','White'] },
-    { name: 'Consistency', unit: '', refText: 'Formed',   type: 'select', options: ['Formed','Soft','Loose','Watery'] },
-    { name: 'Frank Blood', unit: '', refText: 'Absent',   type: 'select', options: ['Absent','Present'] },
-    { name: 'Ova',         unit: '', refText: 'None seen', type: 'text' },
-    { name: 'Cysts',       unit: '', refText: 'None seen', type: 'text' },
-  ],
-};
+import { TEST_TEMPLATES, computeFlag, refInterval } from '../../utils/labConstants';
+import LabReportPreview from '../../components/modals/LabReportPreview';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function computeFlag(value, row) {
-  if (row.type !== 'number') return null;
-  const v = parseFloat(value);
-  if (isNaN(v)) return null;
-  if (row.refHigh !== undefined && v > row.refHigh) return 'H';
-  if (row.refLow  !== undefined && v < row.refLow)  return 'L';
-  return 'N';
-}
 
-function refInterval(row) {
-  if (row.refText) return row.refText;
-  if (row.refLow !== undefined && row.refHigh !== undefined) return `${row.refLow} – ${row.refHigh}`;
-  return '—';
-}
 
 function patientName(order) {
   const p = order?.patients;
@@ -88,111 +23,7 @@ function urgencyBadge(urgency) {
   return <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${cfg[urgency] || cfg.routine} uppercase tracking-wider`}>{urgency || 'Routine'}</span>;
 }
 
-// ── PRINT REPORT ─────────────────────────────────────────────────────────────
-function PrintReport({ item, onClose }) {
-  const printRef = useRef();
-  const patient = item.lab_orders?.patients;
-  let parsedResult = {};
-  try { parsedResult = item.result ? JSON.parse(item.result) : {}; } catch {}
-  const template = TEST_TEMPLATES[item.test_name] || [];
 
-  const handlePrint = () => {
-    const content = printRef.current.innerHTML;
-    const w = window.open('', '_blank');
-    w.document.write(`
-      <html><head><title>Lab Report — ${item.test_name}</title>
-      <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 40px; }
-        h1 { font-size: 18px; margin-bottom: 4px; }
-        h2 { font-size: 14px; margin: 16px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
-        th { background: #f5f5f5; font-weight: bold; }
-        .flag-H { color: red; font-weight: bold; }
-        .flag-L { color: blue; font-weight: bold; }
-        .flag-N { color: green; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 16px; }
-        @media print { button { display: none; } }
-      </style></head><body>${content}</body></html>
-    `);
-    w.document.close();
-    w.print();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-6 border border-slate-200">
-        <div className="flex justify-between items-center px-6 py-4 bg-primary-600 rounded-t-2xl">
-          <div>
-            <h2 className="font-black text-white text-lg">Result Preview & Print</h2>
-            <p className="text-blue-200 text-xs">{item.test_name} · {item.lab_id}</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handlePrint} className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-sm font-bold px-3 py-1.5 rounded-lg transition-colors">
-              <Print sx={{ fontSize: 16 }} /> Print
-            </button>
-            <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold">×</button>
-          </div>
-        </div>
-        <div ref={printRef} className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-xl font-black text-slate-800">Biopassion HMS</h1>
-              <p className="text-xs text-slate-500">Laboratory Report</p>
-            </div>
-            <div className="text-right text-xs text-slate-500">
-              <p className="font-bold">{item.lab_id}</p>
-              <p>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 mb-6 text-sm">
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Patient</p><p className="font-bold text-slate-800">{patient?.first_name} {patient?.last_name}</p></div>
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Patient No.</p><p className="font-bold font-mono">{patient?.patient_no}</p></div>
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Age / Gender</p><p className="font-bold">{patient?.age} · {patient?.gender}</p></div>
-            <div><p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Test</p><p className="font-bold">{item.test_name}</p></div>
-          </div>
-          <h2 className="font-black text-slate-700 mb-3 border-b border-slate-200 pb-2">Results</h2>
-          {template.length > 0 ? (
-            <table className="w-full text-sm border-collapse">
-              <thead className="bg-slate-50">
-                <tr>
-                  {['Parameter', 'Result', 'Unit', 'Flag', 'Reference Range'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-xs font-bold text-slate-500 border border-slate-200">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {template.map(row => {
-                  const val = parsedResult[row.name] || '';
-                  const flag = computeFlag(val, row);
-                  return (
-                    <tr key={row.name} className={flag === 'H' || flag === 'L' ? 'bg-red-50' : ''}>
-                      <td className="px-3 py-2 border border-slate-200 font-medium">{row.name}</td>
-                      <td className={`px-3 py-2 border border-slate-200 font-bold ${flag === 'H' || flag === 'L' ? 'text-red-700' : ''}`}>{val || '—'}</td>
-                      <td className="px-3 py-2 border border-slate-200 text-slate-500 text-xs">{row.unit || '—'}</td>
-                      <td className="px-3 py-2 border border-slate-200">
-                        {flag && <span className={`font-bold text-xs font-mono flag-${flag} ${flag === 'H' ? 'text-red-600' : flag === 'L' ? 'text-blue-600' : 'text-emerald-600'}`}>{flag}</span>}
-                      </td>
-                      <td className="px-3 py-2 border border-slate-200 text-slate-500 text-xs">{refInterval(row)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap">
-              {parsedResult.__freetext || item.result || '—'}
-            </div>
-          )}
-          <div className="mt-6 pt-4 border-t border-slate-200 flex justify-between text-xs text-slate-400">
-            <span>Validated by: {item.validated_at ? new Date(item.validated_at).toLocaleString() : 'Pending'}</span>
-            <span>Printed: {new Date().toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── RESULT ENTRY MODAL ────────────────────────────────────────────────────────
 function ResultEntryModal({ item, onClose, onSave }) {
@@ -811,7 +642,7 @@ export default function Laboratory() {
       {/* Modals */}
       {rejectingItem  && <RejectModal item={rejectingItem}  onClose={() => setRejectingItem(null)}  onReject={handleRejectSample} />}
       {enteringResult && <ResultEntryModal item={enteringResult} onClose={() => setEnteringResult(null)} onSave={handleSaveResult} />}
-      {previewItem    && <PrintReport item={previewItem}    onClose={() => setPreviewItem(null)} />}
+      {previewItem    && <LabReportPreview item={previewItem}    onClose={() => setPreviewItem(null)} />}
     </div>
   );
 }

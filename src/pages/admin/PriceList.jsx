@@ -25,11 +25,11 @@ const DEFAULT_PRICES = [
 ];
 
 const CATEGORY_COLORS = {
-  consultation: 'bg-blue-100 text-blue-700',
-  lab:          'bg-amber-100 text-amber-700',
-  pharmacy:     'bg-emerald-100 text-emerald-700',
-  ward:         'bg-violet-100 text-violet-700',
-  procedure:    'bg-rose-100 text-rose-700',
+  consultation: 'text-blue-600',
+  lab:          'text-amber-600',
+  pharmacy:     'text-emerald-600',
+  ward:         'text-violet-600',
+  procedure:    'text-rose-600',
 };
 
 const CATEGORIES = ['consultation', 'lab', 'pharmacy', 'ward', 'procedure'];
@@ -39,11 +39,14 @@ function PriceRow({ item, onEdit }) {
     <tr className="hover:bg-slate-50 group">
       <td className="px-4 py-3 font-semibold text-slate-800 text-sm">{item.name}</td>
       <td className="px-4 py-3">
-        <span className={`text-xs font-bold px-2 py-1 rounded-full capitalize ${CATEGORY_COLORS[item.category] || 'bg-slate-100 text-slate-700'}`}>
+        <span className={`text-xs font-bold capitalize ${CATEGORY_COLORS[item.category] || 'text-slate-600'}`}>
           {item.category}
         </span>
       </td>
-      <td className="px-4 py-3 font-mono font-bold text-slate-700 text-sm">KES {item.price.toLocaleString()}</td>
+      <td className="px-4 py-3 font-mono font-bold text-slate-700 text-sm">
+        <span className="text-[10px] text-slate-400 font-normal mr-1">Ksh.</span>
+        {item.price.toLocaleString()}
+      </td>
       <td className="px-4 py-3">
         <button onClick={() => onEdit(item)}
           className="opacity-0 group-hover:opacity-100 transition-opacity btn-secondary text-xs py-1 px-2">
@@ -84,7 +87,7 @@ function EditModal({ item, onClose, onSave }) {
             </select>
           </div>
           <div>
-            <label className="label">Price (KES) *</label>
+            <label className="label">Price (Ksh) *</label>
             <input type="number" className="input" value={price} onChange={e => setPrice(e.target.value)} min={0} />
           </div>
         </div>
@@ -134,18 +137,18 @@ export default function PriceList() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="card p-3 flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      {/* Filters (De-containerized) */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fontSize="small" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search services…" className="input pl-9" />
+            placeholder="Search services…" className="input pl-9 bg-transparent border-slate-200" />
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap justify-center">
           {['all', ...CATEGORIES].map(c => (
             <button key={c} onClick={() => setCat(c)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all capitalize
-                ${catFilter === c ? 'bg-primary-600 text-white border-transparent' : 'bg-white border-slate-200 text-slate-600'}`}>
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all capitalize
+                ${catFilter === c ? 'bg-primary-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
               {c}
             </button>
           ))}
@@ -156,10 +159,10 @@ export default function PriceList() {
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-transparent border-b border-slate-200">
               <tr>
-                {['Service / Item', 'Category', 'Price (KES)', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
+                {['Service / Item', 'Category', 'Price (Ksh)', 'Actions'].map(h => (
+                  <th key={h} className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
             </thead>

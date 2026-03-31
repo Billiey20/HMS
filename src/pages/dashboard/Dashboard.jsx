@@ -1,33 +1,49 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { analyticsService } from '../../services/index';
 import {
-  PersonAdd, Hotel, MedicalServices, Science,
-  LocalPharmacy, ReceiptLong, Inventory2, Group,
-  TrendingUp, AccessTime, Warning
+  MedicalServices, Hotel, Science, 
+  ReceiptLong, TrendingUp, TrendingDown, People
 } from '@mui/icons-material';
 
-const stats = [
-  { label: 'OPD Today',        value: '—', sub: 'Patients seen',    icon: MedicalServices, color: 'bg-blue-50 text-blue-600',    border: 'border-blue-100' },
-  { label: 'Inpatients',       value: '—', sub: 'Occupied beds',     icon: Hotel,           color: 'bg-violet-50 text-violet-600', border: 'border-violet-100' },
-  { label: 'Lab Queue',        value: '—', sub: 'Pending tests',     icon: Science,         color: 'bg-amber-50 text-amber-600',  border: 'border-amber-100' },
-  { label: 'Pharmacy',         value: '—', sub: 'Pending orders',    icon: LocalPharmacy,   color: 'bg-emerald-50 text-emerald-600', border: 'border-emerald-100' },
-  { label: 'Total Billing',    value: '—', sub: 'Today KES',         icon: ReceiptLong,     color: 'bg-cyan-50 text-cyan-600',    border: 'border-cyan-100' },
-  { label: 'Low Stock Alerts', value: '—', sub: 'Items below reorder', icon: Inventory2,    color: 'bg-red-50 text-red-600',      border: 'border-red-100' },
-];
-
-const quickActions = [
-  { label: 'Register Patient', to: '/patients/register', icon: PersonAdd,     color: 'bg-primary-600 hover:bg-primary-700 text-white' },
-  { label: 'Admit to Ward',    to: '/ipd/admissions',    icon: Hotel,          color: 'bg-violet-600 hover:bg-violet-700 text-white' },
-  { label: 'Order Lab Test',   to: '/lab',               icon: Science,        color: 'bg-amber-600 hover:bg-amber-700 text-white' },
-  { label: 'Dispense Meds',    to: '/pharmacy',          icon: LocalPharmacy,  color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
-  { label: 'New Invoice',      to: '/billing',           icon: ReceiptLong,    color: 'bg-cyan-600 hover:bg-cyan-700 text-white' },
-  { label: 'Receive Stock',    to: '/inventory/receive', icon: Inventory2,     color: 'bg-orange-600 hover:bg-orange-700 text-white' },
-];
+const DIAG_COLORS = ['bg-red-500','bg-orange-500','bg-amber-500','bg-yellow-500','bg-emerald-500','bg-teal-500','bg-slate-400'];
 
 export default function Dashboard() {
   const { profile, role } = useAuth();
-  const navigate = useNavigate();
+  const [data, setData] = useState({
+    kpis: {},
+    beds: [],
+    depts: [],
+    diagnoses: [],
+    revenue: [],
+    staff: []
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAll() {
+      try {
+        const [kpis, beds, depts, diagnoses, staff] = await Promise.all([
+          analyticsService.getKPIs(),
+          analyticsService.getBedOccupancy(),
+          analyticsService.getDepartmentActivity(),
+          analyticsService.getTopDiagnoses(),
+          analyticsService.getStaffOnDuty()
+        ]);
+        
+        let revenue = [];
+        // Only load revenue trend if admin or billing (or if user wants everyone, let's load it for everyone as per request 'remove dummy from everywhere and combine')
+        revenue = await analyticsService.getRevenueTrend();
+
+        setData({ kpis, beds, depts, diagnoses, revenue, staff });
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAll();
+  }, [role]);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -36,12 +52,28 @@ export default function Dashboard() {
     return 'Good evening';
   };
 
+  const METRIC_CARDS = [
+    { label: 'Total Patients',    value: data.kpis.patients ?? '—',     sub: 'Registered',    icon: People,         color: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
+    { label: 'OPD (Today)',       value: data.kpis.todayOpd ?? '—',     sub: 'Visits',        icon: MedicalServices,color: 'bg-blue-50 border-blue-100 text-blue-700' },
+    { label: 'Inpatients',        value: data.kpis.inpatients ?? '—',   sub: 'Admitted',      icon: Hotel,          color: 'bg-violet-50 border-violet-100 text-violet-700' },
+    { label: 'Pending Lab',       value: data.kpis.pendingLab ?? '—',   sub: 'Tests queue',   icon: Science,        color: 'bg-amber-50 border-amber-100 text-amber-700' },
+    { label: 'Today Revenue',     value: data.kpis.revenue ? `KES ${data.kpis.revenue.toLocaleString()}` : '—', sub: 'Collected', icon: ReceiptLong,     color: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary-600 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-black text-slate-800">
-          {greeting()}, {profile?.first_name || 'Doctor'} 👋
+          {greeting()}, {profile?.first_name || 'User'} 👋
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           Here's what's happening across the hospital today.
@@ -49,65 +81,136 @@ export default function Dashboard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {stats.map(({ label, value, sub, icon: Icon, color, border }) => (
-          <div key={label} className={`card p-4 border ${border} flex flex-col gap-2`}>
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color} shrink-0`}>
-              <Icon sx={{ fontSize: 18 }} />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {METRIC_CARDS.map(({ label, value, sub, icon: Icon, color }) => (
+          <div key={label} className={`card border p-4 space-y-2 ${color}`}>
+            <div className="flex justify-between items-start">
+              <Icon sx={{ fontSize: 22 }} />
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-800">{value}</p>
-              <p className="text-xs font-bold text-slate-700">{label}</p>
-              <p className="text-[11px] text-slate-400">{sub}</p>
+              <p className="text-2xl font-black">{value}</p>
+              <p className="text-xs font-bold leading-tight">{label}</p>
+              <p className="text-[11px] opacity-70 mt-0.5">{sub}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Two-column section */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Recent Patients */}
+      {/* Main Analytics Columns */}
+      <div className="grid lg:grid-cols-3 gap-6">
+
+        {/* 1. Bed Occupancy */}
         <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-800">Recent Registrations</h3>
-            <button onClick={() => navigate('/patients')} className="text-xs text-primary-600 font-semibold hover:underline">View all</button>
-          </div>
-          <div className="text-center py-10 text-slate-400">
-            <PersonAdd sx={{ fontSize: 36 }} className="mb-2" />
-            <p className="text-sm">No patients yet today</p>
+          <h2 className="font-black text-slate-800 mb-4">Bed Occupancy</h2>
+          {data.beds.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">No wards configured.</p>
+          ) : (
+            <div className="space-y-3">
+              {data.beds.map(w => {
+                const pct = w.total > 0 ? Math.round((w.occupied / w.total) * 100) : 0;
+                const barColor = pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-amber-400' : 'bg-emerald-500';
+                return (
+                  <div key={w.name}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="font-semibold text-slate-700">{w.name}</span>
+                      <span className="text-slate-500">{w.occupied}/{w.total} ({pct}%)</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 2. Department Activity */}
+        <div className="card p-5">
+          <h2 className="font-black text-slate-800 mb-4">Department Activity Today</h2>
+          <div className="space-y-3">
+            {data.depts.map((d) => (
+              <div key={d.dept}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="font-semibold text-slate-700">{d.dept}</span>
+                  <span className="text-slate-500">{d.visits} actions</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-primary-500 transition-all" style={{ width: `${d.pct}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Bed Occupancy */}
+        {/* 3. Top Diagnoses */}
         <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-800">Bed Occupancy</h3>
-            <button onClick={() => navigate('/ipd/wards')} className="text-xs text-primary-600 font-semibold hover:underline">View map</button>
-          </div>
-          <div className="space-y-3">
-            {[
-              { ward: 'General Ward', total: 30,  occupied: 0 },
-              { ward: 'Maternity',    total: 15,  occupied: 0 },
-              { ward: 'Surgical',     total: 20,  occupied: 0 },
-              { ward: 'Pediatric',    total: 12,  occupied: 0 },
-              { ward: 'ICU',          total:  8,  occupied: 0 },
-            ].map(({ ward, total, occupied }) => {
-              const pct = total > 0 ? Math.round((occupied / total) * 100) : 0;
+          <h2 className="font-black text-slate-800 mb-4">Top Diagnoses (30 Days)</h2>
+          {data.diagnoses.length === 0 ? (
+             <p className="text-sm text-slate-400 text-center py-4">No diagnosis data yet.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {data.diagnoses.map((d, i) => (
+                <div key={d.name} className="flex items-center gap-3">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${DIAG_COLORS[i % DIAG_COLORS.length]}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between text-xs mb-0.5">
+                      <span className="font-semibold text-slate-700 truncate">{d.name}</span>
+                      <span className="text-slate-500 shrink-0 ml-1">{d.n} ({d.pct}%)</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${DIAG_COLORS[i % DIAG_COLORS.length]}`} style={{ width: `${d.pct}%` }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Revenue Trend */}
+        <div className="card p-5">
+          <h2 className="font-black text-slate-800 mb-4">Revenue Trend (Last 7 Days)</h2>
+          <div className="flex items-end gap-3 h-40">
+            {data.revenue.map((d) => {
+              // Normalize height against the max value
+              const maxVal = Math.max(...data.revenue.map(r => r.val), 1000);
+              const pct = Math.round((d.val / maxVal) * 100);
               return (
-                <div key={ward}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="font-medium text-slate-700">{ward}</span>
-                    <span className="text-slate-500">{occupied}/{total}</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                  </div>
+                <div key={d.fullDate} className="flex flex-col items-center gap-1 flex-1">
+                  <span className="text-[10px] font-bold text-slate-600">KES {(d.val / 1000).toFixed(0)}k</span>
+                  <div className="w-full rounded-t-lg bg-emerald-500 transition-all hover:bg-emerald-600"
+                    style={{ height: `${pct}%`, minHeight: '4px' }} />
+                  <span className="text-[10px] text-slate-500 truncate text-center">{d.label}</span>
                 </div>
               );
             })}
           </div>
         </div>
+
+        {/* Staff on Duty */}
+        <div className="card p-5">
+          <h2 className="font-black text-slate-800 mb-4">System Users (Active)</h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {data.staff.map((s, idx) => (
+              <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${s.color}`}>
+                  <span className="font-black text-sm uppercase">
+                    {s.name.substring(0, 2)}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800 text-xs truncate capitalize">{s.name}</p>
+                  <p className="text-[10px] text-slate-500 uppercase">{s.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+      
     </div>
   );
 }
