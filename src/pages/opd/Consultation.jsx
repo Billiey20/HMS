@@ -6,7 +6,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../../context/AuthContext';
-import { consultationService, labService, opdService } from '../../services';
+import { consultationService, labService, opdService, notificationService } from '../../services';
 import LabReportPreview from '../../components/modals/LabReportPreview';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -433,6 +433,18 @@ export default function Consultation() {
       }
 
       await opdService.updateVisit(visit.visit_id, updatePayload);
+
+      // Notify Billing
+      await notificationService.create({
+        title: 'Patient Ready for Discharge',
+        message: `Consultation finalized for ${visit.patient_name}. Please clear billing.`,
+        role: 'billing',
+        type: 'warning',
+        link: '/billing',
+        refId: visit.visit_id,
+        refType: 'visit'
+      });
+
       alert(`Consultation finalised successfully!`);
       navigate('/opd/queue');
     } catch (err) {

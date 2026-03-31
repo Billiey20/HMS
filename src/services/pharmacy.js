@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { notificationService } from './notifications';
 
 export const pharmacyService = {
   async listPrescriptions() {
@@ -60,6 +61,9 @@ export const pharmacyService = {
       txn_type: 'receive', quantity: qty,
       cost: parseFloat(meta.cost) || 0, performed_by: meta.userId,
     }]);
+
+    // Resolve any low stock notifications
+    await notificationService.resolve(drugId, 'stock');
   },
 
   async dispense(prescriptionId, itemUpdates, allDone) {
@@ -85,5 +89,38 @@ export const pharmacyService = {
       status: allDone ? 'dispensed' : 'partial',
       dispensed_at: new Date().toISOString(),
     }).eq('id', prescriptionId);
+
+    // Get details for notification
+    const { data: rx } = await supabase.from('prescriptions').select('*, patients(*)').eq('id', prescriptionId).single();
+    
+    // Notify Doctor if dispensed
+    if (allDone && rx) {
+      await notificationService.create({
+        title: 'Prescription Dispensed',
+        message: `Medication for ${rx.patients?.first_name} ${rx.patients?.last_name} has been dispensed.`,
+        userId: rx.prescribed_by,
+        type: 'success',
+        link: '/opd/queue',
+        refId: rx.visit_id,
+        refType: 'visit'
+      });
+    }
+
+    // Check for Low Stock alerts
+    for (const upd of itemUpdates) {
+      if (!upd.drug_id) continue;
+      const { data: dc } = await supabase.from('drug_catalog').select('name, current_stock, reorder_level').eq('id', upd.drug_id).single();
+      if (dc && dc.current_stock <= dc.reorder_level) {
+        await notificationService.create({
+          title: 'Low Stock Alert',
+          message: `Stock for ${dc.name} is low (${dc.current_stock} remaining). Reorder recommended.`,
+          role: 'pharmacy',
+          type: 'warning',
+          link: '/inventory',
+          refId: upd.drug_id,
+          refType: 'stock'
+        });
+      }
+    }
   },
 };

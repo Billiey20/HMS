@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { notificationService } from './notifications';
 
 export const opdService = {
   // We're pivoting from the SQL View because it might be hardcoded to old statuses
@@ -54,8 +55,21 @@ export const opdService = {
   },
 
   async updateStatus(id, status) {
-    const { data, error } = await supabase.from('opd_visits').update({ status }).eq('id', id);
+    const { data, error } = await supabase.from('opd_visits').update({ status }).eq('id', id).select('*, patients(*)').single();
     if (error) throw error;
+    
+    // Notify Doctor if waiting
+    if (status === 'waiting_doctor') {
+      await notificationService.create({
+        title: 'New Patient in Queue',
+        message: `Patient ${data.patients?.first_name} ${data.patients?.last_name} is ready for consultation.`,
+        role: 'doctor',
+        type: 'info',
+        link: '/opd/queue',
+        refId: id,
+        refType: 'visit'
+      });
+    }
     return data;
   },
 

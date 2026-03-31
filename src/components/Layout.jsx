@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
-import {
-  LocalHospital, Dashboard, PersonAdd, Assignment,
-  Hotel, MedicalServices, Science, LocalPharmacy,
-  Inventory, ReceiptLong, Group, BarChart,
-  Settings, Logout, Menu, Close,
-  NotificationsNone, AccountCircle, AdminPanelSettings,
-  PriceCheck, MonitorHeart
+import { 
+  LocalHospital, Dashboard, PersonAdd, Assignment, 
+  Hotel, MedicalServices, Science, LocalPharmacy, 
+  Inventory, ReceiptLong, Group, BarChart, 
+  Settings, Logout, Menu, Close, 
+  NotificationsNone, AccountCircle, AdminPanelSettings, 
+  PriceCheck, MonitorHeart 
 } from '@mui/icons-material';
+import NotificationBell from './NotificationBell';
 
 // ── Navigation structure (each item has a `section` key for RBAC) ─────────────
 const NAV = [
@@ -215,10 +216,7 @@ export default function Layout() {
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-4">
-            <button className="relative text-slate-500 hover:text-slate-800 transition-colors">
-              <NotificationsNone sx={{ fontSize: 22 }} />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            <NotificationBell />
             <span className="hidden sm:block text-xs text-slate-500 font-medium border-r border-slate-200 pr-4">
               {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
             </span>

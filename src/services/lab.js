@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { billingService } from './billing';
+import { notificationService } from './notifications';
 
 export const labService = {
   // ── ORDERS (Stage 1 - Lab Requests) ────────────────────────────────────────
@@ -52,8 +53,20 @@ export const labService = {
   // ── Stage 1: Create Order ───────────────────────────────────────────────────
   async create(orderPayload, tests = []) {
     const { data: order, error } = await supabase
-      .from('lab_orders').insert([orderPayload]).select().single();
+      .from('lab_orders').insert([orderPayload]).select('*, patients(*)').single();
     if (error) throw error;
+
+    // Notify Lab Staff
+    await notificationService.create({
+      title: 'New Lab Request',
+      message: `${tests.length} tests requested for ${order.patients?.first_name} ${order.patients?.last_name}`,
+      role: 'lab_staff',
+      type: 'info',
+      link: '/lab',
+      refId: order.id,
+      refType: 'lab_order'
+    });
+
     if (tests.length) {
       const { error: itemErr } = await supabase.from('lab_order_items').insert(
         tests.map(t => ({ lab_order_id: order.id, test_name: t, status: 'pending', sample_status: 'pending' }))
@@ -87,6 +100,9 @@ export const labService = {
 
   // ── Stage 2: Accept or Reject sample ───────────────────────────────────────
   async acceptSample(itemId) {
+    const { data: item, error: fetchErr } = await supabase.from('lab_order_items').select('*, lab_orders(patients(*))').eq('id', itemId).single();
+    if (fetchErr) throw fetchErr;
+
     const { error } = await supabase
       .from('lab_order_items')
       .update({ 
@@ -96,6 +112,17 @@ export const labService = {
       })
       .eq('id', itemId);
     if (error) throw error;
+
+    // Notify Lab Tech that sample is ready for processing
+    await notificationService.create({
+      title: 'Sample Received',
+      message: `Sample for ${item.test_name} (${item.lab_orders?.patients?.first_name}) is ready for results.`,
+      role: 'lab_staff',
+      type: 'success',
+      link: '/lab',
+      refId: itemId,
+      refType: 'lab_item'
+    });
   },
 
   async rejectSample(itemId, reason) {
@@ -142,11 +169,25 @@ export const labService = {
     await supabase.from('lab_orders').update({ status: 'completed' }).eq('id', orderId);
 
     // Send patient back to doctor queue
-    const { data: order } = await supabase
-      .from('lab_orders').select('visit_id').eq('id', orderId).single();
+    const { data: order, error: orderErr } = await supabase
+      .from('lab_orders').select('*, patients(*)').eq('id', orderId).single();
+    
+    if (orderErr) throw orderErr;
+
     if (order?.visit_id) {
       await supabase
         .from('opd_visits').update({ status: 'waiting_doctor' }).eq('id', order.visit_id);
+
+      // Notify Doctor
+      await notificationService.create({
+        title: 'Lab Results Ready',
+        message: `Results for ${order.patients?.first_name} ${order.patients?.last_name} have been posted.`,
+        userId: order.ordered_by,
+        type: 'success',
+        link: '/opd/queue',
+        refId: order.visit_id,
+        refType: 'visit'
+      });
     }
   },
 

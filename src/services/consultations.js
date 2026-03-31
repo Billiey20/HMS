@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { billingService } from './billing';
+import { notificationService } from './notifications';
 
 export const consultationService = {
   async saveDraft(payload) {
@@ -22,6 +23,10 @@ export const consultationService = {
       } catch (e) {
         console.error('Failed to append consultation fee:', e);
       }
+      
+      // Resolve triage notification for this visit
+      await notificationService.resolve(payload.visit_id, 'visit');
+
       return data;
     }
   },
@@ -74,6 +79,37 @@ export const consultationService = {
         console.error('Failed to append pharmacy charges:', e);
       }
     }
+
+    // Notify Pharmacy
+    const { data: patient } = await supabase.from('patients').select('first_name, last_name').eq('id', payload.patient_id).single();
+    await notificationService.create({
+      title: 'New Prescription',
+      message: `Prescription for ${patient?.first_name} ${patient?.last_name} is ready for dispensing.`,
+      role: 'pharmacy',
+      type: 'info',
+      link: '/pharmacy',
+      refId: rx.id,
+      refType: 'prescription'
+    });
+
     return rx;
+  },
+
+  async finalise(id, visitId, patientId, doctorId) {
+    const { data, error } = await supabase.from('opd_visits').update({ status: 'completed' }).eq('id', visitId).select('*, patients(*)').single();
+    if (error) throw error;
+
+    // Notify Billing
+    await notificationService.create({
+      title: 'Patient Ready for Discharge',
+      message: `Consultation finalized for ${data.patients?.first_name} ${data.patients?.last_name}. Please clear billing.`,
+      role: 'billing',
+      type: 'warning',
+      link: '/billing',
+      refId: visitId,
+      refType: 'visit'
+    });
+
+    return data;
   },
 };

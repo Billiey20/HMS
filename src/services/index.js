@@ -20,3 +20,7 @@ export { hrService } from './hr.js';
 export { settingsService } from './settings.js';
 // ── Analytics ─────────────────────────────────────────────────────────────────
 export { analyticsService } from './analytics.js';
+// ── Notifications ─────────────────────────────────────────────────────────────
+export { notificationService } from './notifications.js';
+
+
