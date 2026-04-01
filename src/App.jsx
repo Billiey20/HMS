@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
 import { useAuth } from './context/AuthContext';
 import RoleGuard from './components/guards/RoleGuard';
 
@@ -55,7 +56,7 @@ function HomeRedirect() {
   }
 
   if (role === 'triage')       return <Navigate to="/opd/triage" replace />;
-  if (role === 'reception')    return <Navigate to="/reception" replace />;
+  if (role === 'reception')    return <Navigate to="/patients" replace />;
   if (role === 'pharmacy')     return <Navigate to="/pharmacy" replace />;
   if (role === 'lab_staff')    return <Navigate to="/lab" replace />;
   if (role === 'doctor')       return <Navigate to="/opd/queue" replace />;
@@ -71,7 +72,9 @@ function HomeRedirect() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <>
+      <ToastContainer />
+      <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -116,6 +119,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </>
   );
 }

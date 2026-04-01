@@ -5,6 +5,8 @@ import {
 } from '@mui/icons-material';
 import { pharmacyService } from '../../services/index';
 import { useAuth } from '../../context/AuthContext';
+import { notify } from '../../utils/toast';
+import LoadingDots from '../../components/common/LoadingDots';
 
 function DispenseModal({ rx, stockMap, onClose, onDispense }) {
   // rx.prescription_items
@@ -74,9 +76,9 @@ function DispenseModal({ rx, stockMap, onClose, onDispense }) {
         </div>
 
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={() => { onDispense(rx.id, items); onClose(); }} className="btn-primary">
-            <LocalPharmacy sx={{ fontSize: 16 }} /> Confirm Dispensing
+          <button onClick={onClose} className="btn-secondary" disabled={rx.loading}>Cancel</button>
+          <button onClick={() => onDispense(rx.id, items)} className="btn-primary min-w-[140px]" disabled={rx.loading}>
+            {rx.loading ? <LoadingDots /> : <><LocalPharmacy sx={{ fontSize: 16 }} /> Confirm Dispensing</>}
           </button>
         </div>
       </div>
@@ -125,9 +127,9 @@ function ReceiveStockModal({ drugs, onClose, onSave }) {
           </div>
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={() => onSave(form)} disabled={!form.drugId || !form.qty} className="btn-primary">
-            <Add sx={{ fontSize: 16 }} /> Receive Stock
+          <button onClick={onClose} className="btn-secondary" disabled={drugs.loading}>Cancel</button>
+          <button onClick={() => onSave(form)} disabled={!form.drugId || !form.qty || drugs.loading} className="btn-primary min-w-[140px]">
+            {drugs.loading ? <LoadingDots /> : <><Add sx={{ fontSize: 16 }} /> Receive Stock</>}
           </button>
         </div>
       </div>
@@ -135,7 +137,7 @@ function ReceiveStockModal({ drugs, onClose, onSave }) {
   );
 }
 
-function RegisterDrugModal({ onClose, onSave }) {
+function RegisterDrugModal({ loading, onClose, onSave }) {
   const [form, setForm] = useState({ name: '', category: 'General', form: 'tablets', reorder: 20, price: 0 });
   const f = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
 
@@ -179,9 +181,9 @@ function RegisterDrugModal({ onClose, onSave }) {
           </div>
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={() => onSave(form)} disabled={!form.name} className="btn-primary">
-            <Add sx={{ fontSize: 16 }} /> Register Drug
+          <button onClick={onClose} className="btn-secondary" disabled={loading}>Cancel</button>
+          <button onClick={() => onSave(form)} disabled={!form.name || loading} className="btn-primary min-w-[140px]">
+             {loading ? <LoadingDots /> : <><Add sx={{ fontSize: 16 }} /> Register Drug</>}
           </button>
         </div>
       </div>
@@ -199,12 +201,13 @@ export default function Pharmacy() {
   const [registering, setRegistering]     = useState(false);
   const [search, setSearch]               = useState('');
   const [stockSearch, setStockSearch]     = useState('');
-  const [loading, setLoading]             = useState(true);
+  const [fetching, setFetching]           = useState(true);
+  const [submitting, setSubmitting]       = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
-    setLoading(true);
+    setFetching(true);
     try {
       const rx = await pharmacyService.listPrescriptions();
       const st = await pharmacyService.listDrugStock();
@@ -213,57 +216,68 @@ export default function Pharmacy() {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setFetching(false);
     }
   };
 
   const stockMap = Object.fromEntries(drugStock.map(d => [d.id, d.current_qty]));
 
   const handleDispense = async (rxId, items) => {
+    setSubmitting(true);
     try {
       const allDone = items.every(i => (i.quantity_dispensed || 0) + i.toDispense >= i.quantity);
       await pharmacyService.dispense(rxId, items, allDone);
+      setDispensing(null);
       await loadData();
+      notify.success("Meds dispensed!");
     } catch (e) {
       console.error("Dispense error:", e);
-      alert("Error dispensing medication.");
+      notify.error("Error dispensing medication.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleRegisterDrug = async (form) => {
-     try {
-       await pharmacyService.createDrug({
-         name: form.name,
-         category: form.category,
-         unit: form.form,
-         reorder_level: parseInt(form.reorder),
-         unit_cost: parseFloat(form.price) // Maps to selling_price in service
-       });
-       setRegistering(false);
-       await loadData();
-       alert("Drug registered successfully!");
-     } catch (err) {
-       console.error(err);
-       alert("Failed to register drug");
-     }
-  };
-
-  const handleReceiveStock = async (form) => {
-     try {
-       await pharmacyService.receiveStock(form.drugId, parseInt(form.qty), {
-         batchNo: form.batchNo,
-         expiry: form.expiry,
-         cost: form.cost,
-         userId: user?.id
-       });
-       setReceiving(false);
-       await loadData();
-       alert("Stock received successfully!");
-     } catch (err) {
-       console.error(err);
-       alert("Failed to receive stock");
-     }
-  };
+   const handleRegisterDrug = async (form) => {
+      setSubmitting(true);
+      try {
+        await pharmacyService.createDrug({
+          name: form.name,
+          category: form.category,
+          unit: form.form,
+          reorder_level: parseInt(form.reorder),
+          unit_cost: parseFloat(form.price)
+        });
+        setRegistering(false);
+        await loadData();
+        notify.success("Drug registered successfully!");
+      } catch (err) {
+        console.error(err);
+        notify.error("Failed to register drug");
+      } finally {
+        setSubmitting(false);
+      }
+   };
+ 
+   const handleReceiveStock = async (form) => {
+      setSubmitting(true);
+      try {
+        await pharmacyService.receiveStock(form.drugId, parseInt(form.qty), {
+          batchNo: form.batchNo,
+          expiry: form.expiry,
+          cost: form.cost,
+          userId: user?.id
+        });
+        setReceiving(false);
+        await loadData();
+        notify.success("Stock received successfully!");
+      } catch (err) {
+        console.error(err);
+        notify.error("Failed to receive stock");
+      } finally {
+        setSubmitting(false);
+      }
+   };
 
   const filteredRx = prescriptions.filter(rx =>
     (rx.patients?.first_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -276,7 +290,7 @@ export default function Pharmacy() {
     (d.category||'').toLowerCase().includes(stockSearch.toLowerCase())
   );
 
-  if (loading) {
+  if (fetching) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[50vh]">
         <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-emerald-600 animate-spin" />
@@ -292,12 +306,6 @@ export default function Pharmacy() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black text-slate-800">Pharmacy Center</h1>
-        <p className="text-sm text-slate-500">Live prescription dispensing & internal drug stock tracking</p>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card p-4 border-amber-100 bg-amber-50">
@@ -460,13 +468,13 @@ export default function Pharmacy() {
       )}
 
       {dispensing && (
-        <DispenseModal rx={dispensing} stockMap={stockMap} onClose={() => setDispensing(null)} onDispense={handleDispense} />
+        <DispenseModal rx={{...dispensing, loading: submitting}} stockMap={stockMap} onClose={() => setDispensing(null)} onDispense={handleDispense} />
       )}
       {receiving && (
-        <ReceiveStockModal drugs={drugStock} onClose={() => setReceiving(false)} onSave={handleReceiveStock} />
+        <ReceiveStockModal drugs={{...drugStock, loading: submitting}} onClose={() => setReceiving(false)} onSave={handleReceiveStock} />
       )}
       {registering && (
-        <RegisterDrugModal onClose={() => setRegistering(false)} onSave={handleRegisterDrug} />
+        <RegisterDrugModal loading={submitting} onClose={() => setRegistering(false)} onSave={handleRegisterDrug} />
       )}
     </div>
   );

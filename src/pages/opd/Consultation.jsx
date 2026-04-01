@@ -8,6 +8,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { consultationService, labService, opdService, notificationService } from '../../services';
 import LabReportPreview from '../../components/modals/LabReportPreview';
+import { notify } from '../../utils/toast';
+import LoadingDots from '../../components/common/LoadingDots';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = ['Triage & Vitals', 'Clinical History', 'Examination', 'Lab & Imaging Orders', 'Diagnosis & Plan', 'Prescriptions', 'Clinical Decision'];
@@ -243,6 +245,7 @@ export default function Consultation() {
   const [referralDetails,  setReferralDetails]  = useState('');
   const [reviewDate,       setReviewDate]       = useState('');
   const [reviewNotes,      setReviewNotes]      = useState('');
+  const [submittingFinal,  setSubmittingFinal]  = useState(false);
 
   useEffect(() => {
     if (!visit.visit_id) return;
@@ -292,7 +295,7 @@ export default function Consultation() {
       setLoadingDraft(true);
       const past = await consultationService.getPastConsultation(visit.patient_id || visit.patientId, visit.visit_id);
       if (!past) {
-        alert("No past consultation found for this patient.");
+        notify.info("No past consultation found for this patient.");
         return;
       }
       const ok = window.confirm("Load data from previous consultation? This will overwrite empty fields.");
@@ -313,9 +316,9 @@ export default function Consultation() {
            if (!findings) setFindings(parsed.other || '');
          } catch(e) {}
       }
-      alert("Past consultation data loaded.");
+      notify.success("Past consultation data loaded.");
     } catch(e) {
-      alert("Failed to fetch past consultation.");
+      notify.error("Failed to fetch past consultation.");
     } finally {
        setLoadingDraft(false);
     }
@@ -349,14 +352,14 @@ export default function Consultation() {
       return true;
     } catch (err) {
       console.error(err);
-      alert('Failed to save draft');
+      notify.error('Failed to save draft');
       return false;
     }
   };
 
   const handleRequestTests = async () => {
     if (!labTests.length && !imagingOrders.length) {
-       alert("No tests selected!"); return;
+       notify.warning("No tests selected!"); return;
     }
     const yes = window.confirm("Request tests & pause this consultation?");
     if (!yes) return;
@@ -378,11 +381,11 @@ export default function Consultation() {
       // 3. Update visit status to 'waiting_lab'
       await opdService.updateStatus(visit.visit_id, 'waiting_lab');
 
-      alert("Tests requested successfully. Consultation paused.");
+      notify.success("Tests requested successfully. Consultation paused.");
       navigate('/opd/queue');
     } catch (err) {
       console.error(err);
-      alert("Failed to request tests");
+      notify.error("Failed to request tests");
     } finally {
       setSubmittingTest(false);
     }
@@ -394,13 +397,14 @@ export default function Consultation() {
       order.lab_order_items?.some(item => item.status === 'completed' && !visitedResults.has(item.id))
     );
     if (pendingReview) {
-      alert("Please review all completed lab results before finalising this consultation.");
+      notify.warning("Please review all completed lab results before finalising this consultation.");
       setActiveTab(3); // Go to lab results tab
       return;
     }
 
     const yes = window.confirm("Finalise this consultation? Modifications will be locked.");
     if (!yes) return;
+    setSubmittingFinal(true);
     try {
       // Save draft (which acts as final state locally)
       const ok = await handleSaveDraft();
@@ -445,11 +449,13 @@ export default function Consultation() {
         refType: 'visit'
       });
 
-      alert(`Consultation finalised successfully!`);
+      notify.success(`Consultation finalised successfully!`);
       navigate('/opd/queue');
     } catch (err) {
       console.error(err);
-      alert("Failed to finalise consultation");
+      notify.error("Failed to finalise consultation");
+    } finally {
+      setSubmittingFinal(false);
     }
   };
 
@@ -595,8 +601,8 @@ export default function Consultation() {
               
               {(labTests.length > 0 || imagingOrders.length > 0) && (
                 <div className="mt-8 pt-4 border-t border-slate-100">
-                  <button onClick={handleRequestTests} disabled={submittingTest} className="w-full btn-primary py-4 text-base justify-center shadow-lg font-bold">
-                    {submittingTest ? 'Sending to Lab...' : 'Request Tests & Pause Consultation'}
+                  <button onClick={handleRequestTests} disabled={submittingTest} className="w-full btn-primary py-4 text-base justify-center shadow-lg font-bold min-h-[56px]">
+                    {submittingTest ? <LoadingDots /> : 'Request Tests & Pause Consultation'}
                   </button>
                   <p className="text-xs text-center text-slate-400 mt-2">The patient will wait for lab results before continuing.</p>
                 </div>
@@ -742,9 +748,9 @@ export default function Consultation() {
               </div>
 
               {/* Finalise */}
-              <button onClick={handleFinalise}
-                className="w-full btn-primary justify-center py-4 text-base rounded-2xl shadow-lg font-bold">
-                <Send sx={{ fontSize: 18 }} /> Finalise & Submit Consultation
+              <button onClick={handleFinalise} disabled={submittingFinal}
+                className="w-full btn-primary justify-center py-4 text-base rounded-2xl shadow-lg font-bold min-h-[60px]">
+                {submittingFinal ? <LoadingDots /> : <><Send sx={{ fontSize: 18 }} /> Finalise & Submit Consultation</>}
               </button>
             </div>
           )}

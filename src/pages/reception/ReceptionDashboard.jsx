@@ -7,10 +7,10 @@ import PriceListModal from '../../components/modals/PriceListModal';
 
 function StatusBadge({ status }) {
   const map = {
-    active:    'badge-green',
-    admitted:  'badge-blue',
-    discharged:'badge-slate',
-    deceased:  'badge-red',
+    active: 'badge-green',
+    admitted: 'badge-blue',
+    discharged: 'badge-slate',
+    deceased: 'badge-red',
   };
   return <span className={`badge ${map[status] || 'badge-slate'} capitalize`}>{status}</span>;
 }
@@ -18,11 +18,11 @@ function StatusBadge({ status }) {
 export default function ReceptionDashboard() {
   const { user } = useAuth();
   const [patients, setPatients] = useState([]);
-  const [search, setSearch]     = useState('');
+  const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showPrices, setShowPrices] = useState(false);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [queueing, setQueueing] = useState(null);
   const [activeVisits, setActiveVisits] = useState([]);
 
@@ -79,7 +79,7 @@ export default function ReceptionDashboard() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      
+
       {/* Dynamic Header */}
       <div>
         <h1 className="text-3xl font-black text-slate-800">Reception Desk</h1>
@@ -121,8 +121,8 @@ export default function ReceptionDashboard() {
 
       <div className="card overflow-hidden border border-slate-200">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-            <h2 className="font-bold text-slate-700">Patient Directory</h2>
-            <span className="badge badge-slate">{patients.length} Total</span>
+          <h2 className="font-bold text-slate-700">Patient Directory</h2>
+          <span className="badge badge-slate">{patients.length} Total</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left min-w-[700px]">
@@ -149,8 +149,8 @@ export default function ReceptionDashboard() {
                       const activeVisit = activeVisits.find(v => v.patient_id === p.id && !['completed', 'cancelled'].includes(v.status));
                       if (!activeVisit && p.status === 'active') {
                         return (
-                          <button 
-                            onClick={() => sendToQueue(p)} 
+                          <button
+                            onClick={() => sendToQueue(p)}
                             disabled={queueing === p.id}
                             className="btn-primary text-xs py-1.5 px-4 disabled:opacity-50 flex items-center gap-2">
                             {queueing === p.id ? 'Routing...' : <><LocalHospital sx={{ fontSize: 14 }} /> To Triage</>}
@@ -164,7 +164,7 @@ export default function ReceptionDashboard() {
                         return <span className="badge badge-blue text-[10px] px-2 py-1"><Person sx={{ fontSize: 12, mr: 0.5 }} /> In OPD Queue</span>;
                       }
                       if (activeVisit) {
-                         return <span className="badge badge-slate text-[10px] px-2 py-1 capitalize">{activeVisit.status.replace('_', ' ')}</span>;
+                        return <span className="badge badge-slate text-[10px] px-2 py-1 capitalize">{activeVisit.status.replace('_', ' ')}</span>;
                       }
                       return null;
                     })()}

@@ -214,7 +214,11 @@ export default function LabReportPreview({ item, onClose }) {
                             <td className={`py-2 ${isAbn ? 'font-bold text-red-600' : ''}`}>{val || '—'}</td>
                             <td className={`py-2 text-slate-600 ${isAbn ? 'font-bold' : ''}`}>{row.unit || '—'}</td>
                             <td className="py-2">
-                              {flag && <span className={`font-black font-mono ${flag === 'H' ? 'text-red-600' : flag === 'L' ? 'text-blue-600' : 'text-slate-800'}`}>{flag}</span>}
+                              {flag && (
+                                <span className={`font-mono ${flag === 'H' || flag === 'L' ? 'font-black' : 'font-normal text-slate-500'}`}>
+                                  {flag === 'H' ? <span className="text-red-600">{flag}</span> : flag === 'L' ? <span className="text-blue-600">{flag}</span> : flag}
+                                </span>
+                              )}
                             </td>
                             <td className={`py-2 text-slate-600 text-[13px] ${isAbn ? 'font-bold' : ''}`}>{refInterval(row)}</td>
                           </tr>

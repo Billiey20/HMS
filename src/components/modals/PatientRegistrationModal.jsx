@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { patientService } from '../../services/api';
+import { notify } from '../../utils/toast';
 
 export default function PatientRegistrationModal({ userId, onClose, onSave }) {
   const empty = {
@@ -17,13 +18,31 @@ export default function PatientRegistrationModal({ userId, onClose, onSave }) {
 
   const validate = () => {
     const errs = {};
-    if (!form.firstName.trim()) errs.firstName = 'Required';
-    if (!form.lastName.trim()) errs.lastName = 'Required';
-    if (!form.gender) errs.gender = 'Required';
+    if (!form.firstName.trim()) errs.firstName = 'First name is required';
+    if (!form.lastName.trim()) errs.lastName = 'Last name is required';
+    if (!form.gender) errs.gender = 'Gender is required';
+    
+    // Age validation
     if (!form.age) {
-      errs.age = 'Required';
+      errs.age = 'Age is required';
     } else if (!['adult', 'child'].includes(form.age.toLowerCase()) && isNaN(Number(form.age))) {
       errs.age = 'Enter "Adult", "Child" or a number';
+    }
+
+    // Phone validation (Kenyan format: 07... or 01... or +254...)
+    if (form.phone) {
+      const phoneRegex = /^(?:254|\+254|0)?(7|1)(?:(?:[0-9][0-9])|(?:0[0-8]))[0-9]{6}$/;
+      if (!phoneRegex.test(form.phone.replace(/\s+/g, ''))) {
+        errs.phone = 'Invalid phone number format';
+      }
+    }
+
+    // Email validation
+    if (form.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email)) {
+        errs.email = 'Invalid email address';
+      }
     }
     return errs;
   };
@@ -53,7 +72,7 @@ export default function PatientRegistrationModal({ userId, onClose, onSave }) {
       await patientService.create(payload);
       onSave();
     } catch (e) {
-      alert('Registration failed: ' + e.message);
+      notify.error('Registration failed: ' + e.message);
     }
   };
 

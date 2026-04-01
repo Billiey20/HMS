@@ -10,10 +10,10 @@ import { Close } from '@mui/icons-material';
 
 function StatusBadge({ status }) {
   const map = {
-    active:    'text-emerald-600',
-    admitted:  'text-blue-600',
-    discharged:'text-slate-500',
-    deceased:  'text-rose-600',
+    active: 'text-emerald-600',
+    admitted: 'text-blue-600',
+    discharged: 'text-slate-500',
+    deceased: 'text-rose-600',
   };
   return <span className={`text-xs font-black capitalize tracking-widest ${map[status] || 'text-slate-500'}`}>{status}</span>;
 
@@ -22,19 +22,24 @@ function StatusBadge({ status }) {
 export default function PatientCenter() {
   const { user, role } = useAuth();
   const [patients, setPatients] = useState([]);
-  const [search, setSearch]     = useState('');
+  const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
-  const [queueing, setQueueing] = useState(false); 
+  const [activeVisits, setActiveVisits] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [queueing, setQueueing] = useState(null);
   const [selectedHistoryPatient, setSelectedHistoryPatient] = useState(null);
   const [encounterPatient, setEncounterPatient] = useState(null);
 
   const loadPatients = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await patientService.list({ search });
-      setPatients(data || []);
+      const [pData, vData] = await Promise.all([
+        patientService.list({ search }),
+        opdService.getQueue()
+      ]);
+      setPatients(pData || []);
+      setActiveVisits(vData || []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -42,22 +47,40 @@ export default function PatientCenter() {
     }
   }, [search]);
 
+  const sendToQueue = async (patient) => {
+    if (!window.confirm(`Queue ${patient.first_name} for Triage?`)) return;
+    setQueueing(patient.id);
+    try {
+      await opdService.createVisit({
+        patient_id: patient.id,
+        triage_priority: 'normal',
+        status: 'waiting_triage',
+        visit_type: 'Walk-In',
+      });
+      await loadPatients();
+    } catch (e) {
+      alert('Failed to send to queue: ' + e.message);
+    } finally {
+      setQueueing(null);
+    }
+  };
+
   const createEncounter = async (type) => {
     if (!encounterPatient) return;
-    setQueueing(true);
+    setQueueing(encounterPatient.id);
     try {
       await opdService.createVisit({
         patient_id: encounterPatient.id,
         triage_priority: type === 'Emergency' ? 'emergency' : 'normal',
-        status: type === 'Follow-Up' ? 'waiting_doctor' : 'waiting_triage', 
+        status: type === 'Follow-Up' ? 'waiting_doctor' : 'waiting_triage',
         visit_type: type,
       });
-      alert(`Visit created: ${type}`);
       setEncounterPatient(null);
+      await loadPatients();
     } catch (e) {
       alert('Failed to create visit: ' + e.message);
     } finally {
-      setQueueing(false);
+      setQueueing(null);
     }
   };
 
@@ -71,14 +94,16 @@ export default function PatientCenter() {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Patient Center</h1>
-          <p className="text-sm text-slate-500">{patients.length} registered patients</p>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Patient Records</h1>
+          <p className="text-sm font-bold text-slate-400 mt-1">{patients.length} Records</p>
         </div>
-        {role !== 'admin' && (
-          <button onClick={() => setShowForm(true)} className="btn-primary shrink-0">
-            <Add sx={{ fontSize: 18 }} /> Register Patient
-          </button>
-        )}
+        <div className="flex items-center gap-4 pr-64"> {/* Increased padding to clear the wide floating date/notification module */}
+          {role !== 'admin' && (
+            <button onClick={() => setShowForm(true)} className="btn-primary flex items-center gap-2 h-11 px-6 shadow-xl shadow-primary-500/10 transition-all active:scale-95">
+              <Add sx={{ fontSize: 20 }} /> Register New Patient
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-center">
@@ -87,8 +112,8 @@ export default function PatientCenter() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name, ID or phone…"
-            className="input pl-9 bg-transparent border-slate-200 focus:bg-white"
+            placeholder="Search patients by name, ID or phone…"
+            className="input pl-9"
           />
         </div>
         <button onClick={loadPatients} className="btn-secondary whitespace-nowrap">
@@ -102,51 +127,78 @@ export default function PatientCenter() {
         </div>
       )}
 
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden border border-slate-200">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left min-w-[700px]">
+          <table className="w-full text-sm text-left min-w-[900px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {['Patient ID', 'Full Name', 'Age / Gender', 'Phone', 'Status', 'Registered', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">{h}</th>
+                {['Patient ID', 'Full Name', 'Age / Gender', 'Contact', 'Status', 'Reception Routing', 'Actions'].map(h => (
+                  <th key={h} className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading && (
-                <tr><td colSpan={7} className="py-12 text-center text-slate-400">Loading patients…</td></tr>
+                <tr><td colSpan={7} className="py-12 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">Loading tracking data…</td></tr>
               )}
-              {!loading && patients.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{p.patient_no}</td>
-                  <td className="px-4 py-3 font-bold text-slate-800">{p.first_name} {p.middle_name} {p.last_name}</td>
-                  <td className="px-4 py-3 text-slate-600">{p.age} · <span className="capitalize">{p.gender?.toLowerCase()}</span></td>
-                  <td className="px-4 py-3 text-slate-600">{p.phone || '—'}</td>
-                  <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-                  <td className="px-4 py-3 text-slate-500 text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString('en-GB') : '—'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button 
-                         onClick={() => setSelectedHistoryPatient(p)}
-                         className="btn-secondary text-xs py-1.5 px-4 font-black capitalize tracking-widest hover:bg-slate-800 hover:text-white transition-all shadow-sm ring-1 ring-slate-200">
-                         View history
-                       </button>
-                      {role !== 'admin' && p.status === 'active' && (
-                        <button 
-                          onClick={() => setEncounterPatient(p)} 
-                          className="bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 text-xs font-semibold py-1 px-3 rounded-lg transition-colors flex items-center gap-1">
-                          <LocalHospital sx={{ fontSize: 14 }} /> New visit
+              {!loading && patients.map(p => {
+                const activeVisit = activeVisits.find(v => v.patient_id === p.id && !['completed', 'cancelled'].includes(v.status));
+
+                return (
+                  <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4 font-mono text-[10px] text-slate-500">{p.patient_no}</td>
+                    <td className="px-5 py-4 font-black text-slate-800">{p.first_name} {p.middle_name} {p.last_name}</td>
+                    <td className="px-5 py-4 text-xs font-bold text-slate-600">{p.age} · <span className="capitalize">{p.gender?.toLowerCase()}</span></td>
+                    <td className="px-5 py-4 text-xs font-mono text-slate-500">{p.phone || '—'}</td>
+                    <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
+                    <td className="px-5 py-4">
+                      {(() => {
+                        if (!activeVisit && p.status === 'active') {
+                          return (
+                            <button
+                              onClick={() => sendToQueue(p)}
+                              disabled={queueing === p.id}
+                              className="bg-primary-50 text-primary-700 hover:bg-primary-600 hover:text-white border border-primary-200 text-xs font-bold py-1.5 px-4 rounded-xl transition-all disabled:opacity-50">
+                              {queueing === p.id ? 'Routing...' : 'Route to triage'}
+                            </button>
+                          );
+                        }
+                        if (activeVisit?.status === 'waiting_triage') {
+                          return <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">In Triage Queue</span>;
+                        }
+                        if (activeVisit?.status === 'waiting_doctor') {
+                          return <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">In OPD Queue</span>;
+                        }
+                        if (activeVisit) {
+                          return <span className="text-[10px] font-black text-slate-400 capitalize tracking-widest">{activeVisit.status.replace('_', ' ')}</span>;
+                        }
+                        return <span className="text-[10px] font-bold text-slate-300">—</span>;
+                      })()}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setSelectedHistoryPatient(p)}
+                          className="text-xs font-bold text-slate-600 hover:text-slate-900 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-all">
+                          View history
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {role !== 'admin' && p.status === 'active' && (
+                          <button
+                            onClick={() => setEncounterPatient(p)}
+                            className="text-xs font-bold bg-primary-600 text-white px-3 py-1.5 rounded-lg hover:bg-primary-700 shadow-sm shadow-primary-200 transition-all">
+                            New visit
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {!loading && patients.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <Person sx={{ fontSize: 36 }} className="mb-2" />
-                    <p>No patients found. {search ? 'Try a different search.' : 'Register the first patient!'}</p>
+                  <td colSpan={7} className="py-20 text-center text-slate-300">
+                    <Person sx={{ fontSize: 48 }} className="mb-3 opacity-20" />
+                    <p className="font-black uppercase tracking-widest text-xs">No Life Records Located</p>
                   </td>
                 </tr>
               )}
@@ -155,13 +207,14 @@ export default function PatientCenter() {
         </div>
       </div>
 
+
       {/* Registration Modal */}
       {showForm && <PatientRegistrationModal userId={user?.id} onClose={() => setShowForm(false)} onSave={async (payload) => { await loadPatients(); setShowForm(false); }} />}
-      
+
       {selectedHistoryPatient && (
-        <PatientHistoryModal 
-          patient={selectedHistoryPatient} 
-          onClose={() => setSelectedHistoryPatient(null)} 
+        <PatientHistoryModal
+          patient={selectedHistoryPatient}
+          onClose={() => setSelectedHistoryPatient(null)}
         />
       )}
 
@@ -169,24 +222,24 @@ export default function PatientCenter() {
       {encounterPatient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-             <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
-                <h3 className="font-black text-slate-800">New visit</h3>
-                <button onClick={() => setEncounterPatient(null)}><Close className="text-slate-400"/></button>
-             </div>
-             <div className="p-6">
-                <p className="text-sm font-bold text-slate-500 mb-4 tracking-widest capitalize">Patient</p>
-                <p className="text-lg font-black text-slate-800 mb-6">{encounterPatient.first_name} {encounterPatient.last_name}</p>
+            <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+              <h3 className="font-black text-slate-800">New visit</h3>
+              <button onClick={() => setEncounterPatient(null)}><Close className="text-slate-400" /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm font-bold text-slate-500 mb-4 tracking-widest capitalize">Patient</p>
+              <p className="text-lg font-black text-slate-800 mb-6">{encounterPatient.first_name} {encounterPatient.last_name}</p>
 
-                <p className="text-xs font-bold text-slate-500 mb-2 capitalize tracking-wide">Select visit type</p>
-                <div className="space-y-2">
-                   {['Walk-In', 'Follow-Up', 'Emergency', 'Routine Clinic'].map(type => (
-                      <button key={type} onClick={() => createEncounter(type)} disabled={queueing}
-                        className="w-full text-left px-4 py-3 border border-slate-200 rounded-xl font-bold text-slate-700 hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 transition-colors">
-                        {type}
-                      </button>
-                   ))}
-                </div>
-             </div>
+              <p className="text-xs font-bold text-slate-500 mb-2 capitalize tracking-wide">Select visit type</p>
+              <div className="space-y-2">
+                {['Walk-In', 'Follow-Up', 'Emergency', 'Routine Clinic'].map(type => (
+                  <button key={type} onClick={() => createEncounter(type)} disabled={queueing}
+                    className="w-full text-left px-4 py-3 border border-slate-200 rounded-xl font-bold text-slate-700 hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

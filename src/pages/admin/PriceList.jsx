@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PriceCheck, Add, Edit, Save, Close, Search } from '@mui/icons-material';
+import { useAuth } from '../../context/AuthContext';
 
 // Initial price list — this will later be loaded from the database
 const DEFAULT_PRICES = [
@@ -48,10 +49,12 @@ function PriceRow({ item, onEdit }) {
         {item.price.toLocaleString()}
       </td>
       <td className="px-4 py-3">
-        <button onClick={() => onEdit(item)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity btn-secondary text-xs py-1 px-2">
-          <Edit sx={{ fontSize: 14 }} /> Edit
-        </button>
+        {onEdit && (
+          <button onClick={() => onEdit(item)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity btn-secondary text-xs py-1 px-2">
+            <Edit sx={{ fontSize: 14 }} /> Edit
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -103,6 +106,7 @@ function EditModal({ item, onClose, onSave }) {
 }
 
 export default function PriceList() {
+  const { role } = useAuth();
   const [prices, setPrices]     = useState(DEFAULT_PRICES);
   const [search, setSearch]     = useState('');
   const [catFilter, setCat]     = useState('all');
@@ -132,9 +136,11 @@ export default function PriceList() {
             <p className="text-sm text-slate-500">{prices.length} services configured</p>
           </div>
         </div>
-        <button onClick={() => setAdding(true)} className="btn-primary shrink-0">
-          <Add sx={{ fontSize: 18 }} /> Add Service
-        </button>
+        {role === 'admin' && (
+          <button onClick={() => setAdding(true)} className="btn-primary shrink-0">
+            <Add sx={{ fontSize: 18 }} /> Add Service
+          </button>
+        )}
       </div>
 
       {/* Filters (De-containerized) */}
@@ -168,7 +174,7 @@ export default function PriceList() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map(item => (
-                <PriceRow key={item.id} item={item} onEdit={setEditing} />
+                <PriceRow key={item.id} item={item} onEdit={role === 'admin' ? setEditing : null} />
               ))}
             </tbody>
           </table>

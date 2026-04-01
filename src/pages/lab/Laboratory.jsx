@@ -8,6 +8,8 @@ import { labService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { TEST_TEMPLATES, computeFlag, refInterval } from '../../utils/labConstants';
 import LabReportPreview from '../../components/modals/LabReportPreview';
+import { notify } from '../../utils/toast';
+import LoadingDots from '../../components/common/LoadingDots';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -43,7 +45,7 @@ function ResultEntryModal({ item, onClose, onSave }) {
       await onSave(item.id, results);
       onClose();
     } catch (e) {
-      alert('Failed to save: ' + e.message);
+      notify.error('Failed to save: ' + e.message);
     } finally {
       setSaving(false);
     }
@@ -92,7 +94,9 @@ function ResultEntryModal({ item, onClose, onSave }) {
                       <td className="px-3 py-2 text-slate-500 text-xs">{row.unit || '—'}</td>
                       <td className="px-3 py-2">
                         {val && flag && (
-                          <span className={`badge font-mono text-xs ${flag === 'H' ? 'badge-red' : flag === 'L' ? 'badge-blue' : 'badge-green'}`}>{flag}</span>
+                          <span className={`font-mono text-xs ${flag === 'H' || flag === 'L' ? 'badge font-bold' : 'font-normal text-slate-500'}`}>
+                            {flag === 'H' ? <span className="badge-red">{flag}</span> : flag === 'L' ? <span className="badge-blue">{flag}</span> : flag}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-slate-500 text-xs">{refInterval(row)}</td>
@@ -128,13 +132,13 @@ function RejectModal({ item, onClose, onReject }) {
   const presets = ['Insufficient sample', 'Haemolysed sample', 'Wrong container', 'Clotted sample', 'Unlabelled specimen', 'Expired container'];
 
   const handleReject = async () => {
-    if (!reason.trim()) { alert('Please provide a rejection reason.'); return; }
+    if (!reason.trim()) { notify.warn('Please provide a rejection reason.'); return; }
     setSaving(true);
     try {
       await onReject(item.id, reason);
       onClose();
     } catch (e) {
-      alert('Failed: ' + e.message);
+      notify.error('Failed: ' + e.message);
     } finally {
       setSaving(false);
     }
@@ -198,7 +202,9 @@ export default function Laboratory() {
   const [stage, setStage] = useState('requests');
   const [orders, setOrders] = useState([]);
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
+  const [submittingId, setSubmittingId] = useState(null); // Track which item is processing
+  const [submittingOrder, setSubmittingOrder] = useState(null); // Track which order is processing
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
 
@@ -208,7 +214,7 @@ export default function Laboratory() {
   const [previewItem, setPreviewItem] = useState(null);
 
   const loadAll = useCallback(async () => {
-    setLoading(true); setError(null);
+    setFetching(true); setError(null);
     try {
       const [ordersData, itemsData] = await Promise.all([
         labService.listOrders(),
@@ -219,11 +225,18 @@ export default function Laboratory() {
     } catch (e) {
       setError(e.message);
     } finally {
-      setLoading(false);
+      setFetching(false);
     }
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Sync with global Refresh button in Layout
+  useEffect(() => {
+    const handleRefresh = () => loadAll();
+    window.addEventListener('hms-refresh-lab', handleRefresh);
+    return () => window.removeEventListener('hms-refresh-lab', handleRefresh);
+  }, [loadAll]);
 
   // ── Derived data per stage ────────────────────────────────────────────────
   const pendingOrders = orders.filter(o => o.status === 'pending');
@@ -252,44 +265,63 @@ export default function Laboratory() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleReceive = async (orderId) => {
+    setSubmittingOrder(orderId);
     try {
       await labService.receiveOrder(orderId);
       await loadAll();
-    } catch (e) { alert('Error: ' + e.message); }
+      notify.success('Order received.');
+    } catch (e) { notify.error('Error: ' + e.message); }
+    finally { setSubmittingOrder(null); }
   };
 
   const handleAcceptSample = async (itemId) => {
+    setSubmittingId(itemId);
     try {
       await labService.acceptSample(itemId);
       await loadAll();
-    } catch (e) { alert('Error: ' + e.message); }
+      notify.success('Sample accepted.');
+    } catch (e) { notify.error('Error: ' + e.message); }
+    finally { setSubmittingId(null); }
   };
 
   const handleRejectSample = async (itemId, reason) => {
-    await labService.rejectSample(itemId, reason);
-    await loadAll();
+    setSubmittingId(itemId);
+    try {
+      await labService.rejectSample(itemId, reason);
+      await loadAll();
+      notify.success('Sample rejected.');
+    } catch (e) { notify.error('Error: ' + e.message); }
+    finally { setSubmittingId(null); }
   };
 
   const handleSaveResult = async (itemId, resultObj) => {
-    await labService.saveItemResult(itemId, resultObj);
-    await loadAll();
+    // ResultEntryModal handles its own saving state internally, 
+    // but we still refresh data here.
+    try {
+      await labService.saveItemResult(itemId, resultObj);
+      await loadAll();
+      notify.success('Results saved.');
+    } catch (e) { notify.error('Error: ' + e.message); }
   };
 
   const handleValidate = async (itemId) => {
+    setSubmittingId(itemId);
     try {
       await labService.validateItem(itemId, user.id);
       await loadAll();
-    } catch (e) { alert('Error: ' + e.message); }
+      notify.success('Results validated.');
+    } catch (e) { notify.error('Error: ' + e.message); }
+    finally { setSubmittingId(null); }
   };
 
   const handlePost = async (orderId) => {
-    const confirm = window.confirm('Post all validated results for this order? This will notify the doctor.');
-    if (!confirm) return;
+    setSubmittingOrder(orderId);
     try {
       await labService.postOrder(orderId);
       await loadAll();
-      alert('Results posted. Patient has been returned to the Doctor\'s Queue.');
-    } catch (e) { alert('Error: ' + e.message); }
+      notify.success('Results posted. Patient has been returned to the Doctor\'s Queue.');
+    } catch (e) { notify.error('Error: ' + e.message); }
+    finally { setSubmittingOrder(null); }
   };
 
   // Group posted items by order
@@ -304,15 +336,6 @@ export default function Laboratory() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800">Laboratory</h1>
-        </div>
-        <button onClick={loadAll} className="btn-secondary shrink-0 group">
-          <Refresh sx={{ fontSize: 18 }} className="group-hover:rotate-180 transition-transform duration-500" /> Refresh
-        </button>
-      </div>
 
       {/* Pipeline Progress — Ultra-Slim Horizontal Stage Cards */}
       <div className="py-2 select-none">
@@ -371,15 +394,15 @@ export default function Laboratory() {
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h2 className="font-black text-slate-700">Lab Requests <span className="text-slate-400 font-normal text-sm">— Awaiting acknowledgement</span></h2>
             </div>
-            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading requests…</div>}
-            {!loading && pendingOrders.filter(matchesSearch).length === 0 && (
+            {fetching && <div className="p-12 text-center text-slate-400 animate-pulse">Loading requests…</div>}
+            {!fetching && pendingOrders.filter(matchesSearch).length === 0 && (
               <div className="p-16 text-center text-slate-400">
                 <Assignment sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
                 <p className="font-bold">No pending lab requests</p>
                 <p className="text-sm mt-1">Orders created by doctors during consultation will appear here.</p>
               </div>
             )}
-            {!loading && (
+            {!fetching && (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[700px]">
                   <thead className="bg-slate-50 border-b border-slate-100">
@@ -400,9 +423,9 @@ export default function Laboratory() {
                         <TD>{urgencyBadge(order.urgency)}</TD>
                         <TD><span className="text-xs text-slate-500">{new Date(order.ordered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></TD>
                         <TD className="text-right">
-                          <button onClick={() => handleReceive(order.id)}
-                            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs rounded-xl transition-all active:scale-95 shadow-sm">
-                            Receive Request
+                          <button onClick={() => handleReceive(order.id)} disabled={submittingOrder === order.id}
+                            className={`px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs rounded-xl transition-all active:scale-95 shadow-sm min-w-[120px] flex items-center justify-center`}>
+                            {submittingOrder === order.id ? <LoadingDots /> : 'Receive Request'}
                           </button>
                         </TD>
                       </tr>
@@ -420,15 +443,15 @@ export default function Laboratory() {
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h2 className="font-black text-slate-700">Sample Collection <span className="text-slate-400 font-normal text-sm">— Accept or reject incoming samples</span></h2>
             </div>
-            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
-            {!loading && sampleItems.filter(matchesItemSearch).length === 0 && (
+            {fetching && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!fetching && sampleItems.filter(matchesItemSearch).length === 0 && (
               <div className="p-16 text-center text-slate-400">
                 <MedicalServices sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
                 <p className="font-bold">No samples awaiting collection</p>
                 <p className="text-sm mt-1">Received orders will appear here, broken down by individual test.</p>
               </div>
             )}
-            {!loading && (
+            {!fetching && (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                   <thead className="bg-slate-50 border-b border-slate-100">
@@ -444,13 +467,13 @@ export default function Laboratory() {
                         <TD>{urgencyBadge(item.lab_orders?.urgency)}</TD>
                         <TD className="text-right">
                           <div className="flex gap-2 justify-end">
-                            <button onClick={() => setRejectingItem(item)}
+                            <button onClick={() => setRejectingItem(item)} disabled={submittingId === item.id}
                               className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs rounded-xl transition-all flex items-center gap-1">
                               <Cancel sx={{ fontSize: 14 }} /> Reject
                             </button>
-                            <button onClick={() => handleAcceptSample(item.id)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1 shadow-sm">
-                              <CheckCircle sx={{ fontSize: 14 }} /> Accept
+                            <button onClick={() => handleAcceptSample(item.id)} disabled={submittingId === item.id}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1 shadow-sm min-w-[80px] justify-center">
+                              {submittingId === item.id ? <LoadingDots /> : <><CheckCircle sx={{ fontSize: 14 }} /> Accept</>}
                             </button>
                           </div>
                         </TD>
@@ -469,15 +492,15 @@ export default function Laboratory() {
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h2 className="font-black text-slate-700">Results Entry <span className="text-slate-400 font-normal text-sm">— Enter test results for accepted samples</span></h2>
             </div>
-            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
-            {!loading && resultsItems.filter(matchesItemSearch).length === 0 && (
+            {fetching && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!fetching && resultsItems.filter(matchesItemSearch).length === 0 && (
               <div className="p-16 text-center text-slate-400">
                 <Science sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
                 <p className="font-bold">No samples awaiting results</p>
                 <p className="text-sm mt-1">Accept samples in the Sample Collection stage first.</p>
               </div>
             )}
-            {!loading && (
+            {!fetching && (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                   <thead className="bg-slate-50 border-b border-slate-100">
@@ -516,15 +539,15 @@ export default function Laboratory() {
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h2 className="font-black text-slate-700">Validation <span className="text-slate-400 font-normal text-sm">— Review, preview, and validate results before posting</span></h2>
             </div>
-            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
-            {!loading && validationItems.filter(matchesItemSearch).length === 0 && (
+            {fetching && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!fetching && validationItems.filter(matchesItemSearch).length === 0 && (
               <div className="p-16 text-center text-slate-400">
                 <FactCheck sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
                 <p className="font-bold">No results awaiting validation</p>
                 <p className="text-sm mt-1">Enter results in the Results stage first.</p>
               </div>
             )}
-            {!loading && (
+            {!fetching && (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[850px]">
                   <thead className="bg-slate-50 border-b border-slate-100">
@@ -555,13 +578,13 @@ export default function Laboratory() {
                           </TD>
                           <TD className="text-right">
                             <div className="flex gap-2 justify-end">
-                              <button onClick={() => setPreviewItem(item)}
+                              <button onClick={() => setPreviewItem(item)} disabled={submittingId === item.id}
                                 className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-bold text-xs rounded-xl transition-all flex items-center gap-1">
                                 <Print sx={{ fontSize: 14 }} /> Preview
                               </button>
-                              <button onClick={() => handleValidate(item.id)}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1 shadow-sm">
-                                <FactCheck sx={{ fontSize: 14 }} /> Validate
+                              <button onClick={() => handleValidate(item.id)} disabled={submittingId === item.id}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1 shadow-sm min-w-[90px] justify-center">
+                                {submittingId === item.id ? <LoadingDots /> : <><FactCheck sx={{ fontSize: 14 }} /> Validate</>}
                               </button>
                             </div>
                           </TD>
@@ -574,7 +597,7 @@ export default function Laboratory() {
             )}
 
             {/* Post panel — show if there are validated (completed) but not-yet-posted items */}
-            {!loading && (() => {
+            {!fetching && (() => {
               const readyToPost = items.filter(i => i.status === 'completed' && !i.posted_at);
               if (readyToPost.length === 0) return null;
               const byOrder = readyToPost.reduce((acc, item) => {
@@ -592,9 +615,9 @@ export default function Laboratory() {
                         <p className="font-bold text-slate-800 text-sm">{patientName(order)}</p>
                         <p className="text-xs text-slate-500">{oi.length} test{oi.length > 1 ? 's' : ''} validated · {order?.patients?.patient_no}</p>
                       </div>
-                      <button onClick={() => handlePost(order?.id)}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm">
-                        <Send sx={{ fontSize: 14 }} /> Post Results to Doctor
+                      <button onClick={() => handlePost(order?.id)} disabled={submittingOrder === order?.id}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm min-w-[150px] justify-center">
+                        {submittingOrder === order?.id ? <LoadingDots /> : <><Send sx={{ fontSize: 14 }} /> Post Results to Doctor</>}
                       </button>
                     </div>
                   ))}
@@ -610,14 +633,14 @@ export default function Laboratory() {
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <h2 className="font-black text-slate-700">Posted Results <span className="text-slate-400 font-normal text-sm">— Published to doctors</span></h2>
             </div>
-            {loading && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
-            {!loading && Object.values(postedByOrder).filter(({ order }) => matchesSearch(order)).length === 0 && (
+            {fetching && <div className="p-12 text-center text-slate-400 animate-pulse">Loading…</div>}
+            {!fetching && Object.values(postedByOrder).filter(({ order }) => matchesSearch(order)).length === 0 && (
               <div className="p-16 text-center text-slate-400">
                 <Send sx={{ fontSize: 48 }} className="mb-3 text-slate-200" />
                 <p className="font-bold">No results posted yet</p>
               </div>
             )}
-            {!loading && (
+            {!fetching && (
               <div className="p-4 space-y-4">
                 {Object.values(postedByOrder).filter(({ order }) => matchesSearch(order)).map(({ order, items: oi }) => (
                   <div key={order?.id} className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">

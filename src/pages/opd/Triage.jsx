@@ -6,9 +6,9 @@ import { opdService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const PRIORITY_CFG = {
-  emergency: { label: 'Emergency', badge: 'badge-red',   border: 'border-l-red-500',   bg: 'bg-red-50'    },
-  urgent:    { label: 'Urgent',    badge: 'badge-amber',  border: 'border-l-amber-400', bg: 'bg-amber-50'  },
-  normal:    { label: 'Normal',    badge: 'badge-green',  border: 'border-l-slate-200', bg: ''             },
+  emergency: { label: 'Emergency', badge: 'badge-red', border: 'border-l-red-500', bg: 'bg-red-50' },
+  urgent: { label: 'Urgent', badge: 'badge-amber', border: 'border-l-amber-400', bg: 'bg-amber-50' },
+  normal: { label: 'Normal', badge: 'badge-green', border: 'border-l-slate-200', bg: '' },
 };
 
 const VITALS_DEFAULTS = {
@@ -19,10 +19,10 @@ const VITALS_DEFAULTS = {
 
 export default function Triage() {
   const { user } = useAuth();
-  const [queue, setQueue]         = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState(null);
+  const [queue, setQueue] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const [selectedPat, setSelectedPat] = useState(null);
   const [vitals, setVitals] = useState(VITALS_DEFAULTS);
@@ -52,18 +52,18 @@ export default function Triage() {
     try {
       await opdService.updateVisit(selectedPat.visit_id, {
         presenting_complaint: vitals.complaint,
-        triage_priority:      vitals.priority,
-        temperature:          parseFloat(vitals.temperature) || null,
-        pulse:                parseInt(vitals.pulse)         || null,
-        bp_systolic:          parseInt(vitals.bpSystolic)    || null,
-        bp_diastolic:         parseInt(vitals.bpDiastolic)   || null,
-        respiratory_rate:     parseInt(vitals.respRate)       || null,
-        spo2:                 parseFloat(vitals.spo2)         || null,
-        weight_kg:            parseFloat(vitals.weight)       || null,
-        height_cm:            parseFloat(vitals.height)       || null,
-        blood_glucose:        parseFloat(vitals.bloodGlucose) || null,
-        triaged_by:           user?.id || null,
-        status:               'waiting_doctor',
+        triage_priority: vitals.priority,
+        temperature: parseFloat(vitals.temperature) || null,
+        pulse: parseInt(vitals.pulse) || null,
+        bp_systolic: parseInt(vitals.bpSystolic) || null,
+        bp_diastolic: parseInt(vitals.bpDiastolic) || null,
+        respiratory_rate: parseInt(vitals.respRate) || null,
+        spo2: parseFloat(vitals.spo2) || null,
+        weight_kg: parseFloat(vitals.weight) || null,
+        height_cm: parseFloat(vitals.height) || null,
+        blood_glucose: parseFloat(vitals.bloodGlucose) || null,
+        triaged_by: user?.id || null,
+        status: 'waiting_doctor',
       });
       setVitals(VITALS_DEFAULTS);
       setSelectedPat(null);
@@ -77,13 +77,10 @@ export default function Triage() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Triage Queue</h1>
-          <p className="text-sm text-slate-500">Live queue · {new Date().toLocaleDateString('en-GB', { weekday:'long', day:'2-digit', month:'long' })}</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={loadQueue} className="btn-secondary"><Refresh sx={{ fontSize: 16 }} /> Refresh</button>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Emergency & Triage</h1>
+          <p className="text-sm font-bold text-slate-400 mt-1">Patient Assessment & Vital Records</p>
         </div>
       </div>
 
@@ -95,7 +92,7 @@ export default function Triage() {
 
       {/* Main Grid: Queue on left, Form on right (if selected) */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
+
         {/* Left Side: Waiting List */}
         <div className={`flex-1 space-y-3 w-full ${selectedPat ? 'lg:max-w-md' : ''} transition-all duration-300`}>
           <div className="flex items-center justify-between pb-2 border-b border-slate-200">
@@ -104,7 +101,7 @@ export default function Triage() {
           </div>
 
           {loading && <div className="card p-8 text-center text-slate-400">Loading queue…</div>}
-          
+
           {!loading && queue.length === 0 && (
             <div className="card p-12 text-center text-slate-400">
               <CheckCircle sx={{ fontSize: 48 }} className="mb-3 text-emerald-300" />
@@ -114,8 +111,8 @@ export default function Triage() {
           )}
 
           {!loading && queue.map(q => {
-             const active = selectedPat?.visit_id === q.visit_id;
-             return (
+            const active = selectedPat?.visit_id === q.visit_id;
+            return (
               <div key={q.visit_id}
                 className={`card p-4 transition-all ${active ? 'ring-2 ring-primary-500 border-primary-500' : 'hover:border-primary-300 border-slate-200'} cursor-pointer`}
                 onClick={() => { setSelectedPat(q); setVitals(VITALS_DEFAULTS); }}>
@@ -152,14 +149,14 @@ export default function Triage() {
               {/* Vitals grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: 'Temp (°C)',   field: 'temperature', placeholder: '36.5' },
-                  { label: 'Pulse (bpm)', field: 'pulse',       placeholder: '72'   },
-                  { label: 'BP Systolic', field: 'bpSystolic',  placeholder: '120'  },
-                  { label: 'BP Diastolic',field: 'bpDiastolic', placeholder: '80'   },
-                  { label: 'RR (/min)',   field: 'respRate',     placeholder: '18'   },
-                  { label: 'SpO₂ (%)',   field: 'spo2',         placeholder: '98'   },
-                  { label: 'Weight (kg)',  field: 'weight',      placeholder: '70'   },
-                  { label: 'RBS (mmol/L)',field: 'bloodGlucose', placeholder: '5.5'  },
+                  { label: 'Temp (°C)', field: 'temperature', placeholder: '36.5' },
+                  { label: 'Pulse (bpm)', field: 'pulse', placeholder: '72' },
+                  { label: 'BP Systolic', field: 'bpSystolic', placeholder: '120' },
+                  { label: 'BP Diastolic', field: 'bpDiastolic', placeholder: '80' },
+                  { label: 'RR (/min)', field: 'respRate', placeholder: '18' },
+                  { label: 'SpO₂ (%)', field: 'spo2', placeholder: '98' },
+                  { label: 'Weight (kg)', field: 'weight', placeholder: '70' },
+                  { label: 'RBS (mmol/L)', field: 'bloodGlucose', placeholder: '5.5' },
                 ].map(({ label, field, placeholder }) => (
                   <div key={field}>
                     <label className="label">{label}</label>
@@ -177,7 +174,7 @@ export default function Triage() {
               <div>
                 <label className="label">Assign Triage Priority *</label>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  {['emergency','urgent','normal'].map(pri => {
+                  {['emergency', 'urgent', 'normal'].map(pri => {
                     const cfg = PRIORITY_CFG[pri];
                     return (
                       <button key={pri} onClick={() => setVitals(p => ({ ...p, priority: pri }))}

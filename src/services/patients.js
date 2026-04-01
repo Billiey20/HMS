@@ -7,7 +7,10 @@ export const patientService = {
       q = q.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,patient_no.ilike.%${search}%,phone.ilike.%${search}%`);
     }
     const { data, error } = await q;
-    if (error) throw error;
+    if (error) {
+      console.error('Patient list fetch failed:', error);
+      throw new Error(`Failed to load patients: ${error.message}`);
+    }
     return data;
   },
 
@@ -49,11 +52,11 @@ export const patientService = {
       supabase.from('prescriptions').select('*, prescription_items(*)').eq('patient_id', patientId).order('prescribed_at', { ascending: false })
     ]);
 
-    if (vErr) console.error("Visits Error:", vErr);
-    if (aErr) console.error("Admissions Error:", aErr);
-    if (vitErr) console.error("Vitals Error:", vitErr);
-    if (bErr) console.error("Bills Error:", bErr);
-    if (rErr) console.error("Prescriptions Error:", rErr);
+    if (vErr) console.error("History: Visits Error:", vErr);
+    if (aErr) console.error("History: Admissions Error:", aErr);
+    if (vitErr) console.error("History: Vitals Error:", vitErr);
+    if (bErr) console.error("History: Bills Error:", bErr);
+    if (rErr) console.error("History: Prescriptions Error:", rErr);
 
     return { 
       visits: visits || [], 

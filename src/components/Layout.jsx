@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { 
@@ -8,9 +8,10 @@ import {
   Inventory, ReceiptLong, Group, BarChart, 
   Settings, Logout, Menu, Close, 
   NotificationsNone, AccountCircle, AdminPanelSettings, 
-  PriceCheck, MonitorHeart 
+  PriceCheck, MonitorHeart, Refresh
 } from '@mui/icons-material';
 import NotificationBell from './NotificationBell';
+import { notify } from '../utils/toast';
 
 // ── Navigation structure (each item has a `section` key for RBAC) ─────────────
 const NAV = [
@@ -93,7 +94,23 @@ export default function Layout() {
   const { user, profile, role, signOut } = useAuth();
   const { hasAccess } = usePermissions();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+  const isLegacyModule = ['/pharmacy', '/lab'].includes(location.pathname);
+  
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => {
+    const saved = localStorage.getItem('sidebar_expanded');
+    return saved === null ? true : JSON.parse(saved);
+  });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarExpanded(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebar_expanded', JSON.stringify(next));
+      return next;
+    });
+  };
+
 
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
@@ -120,32 +137,55 @@ export default function Layout() {
     .filter(group => group.items.length > 0);
 
   const Sidebar = () => (
-    <aside className="w-64 shrink-0 h-full flex flex-col bg-white border-r border-slate-200 overflow-y-auto">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100">
-        <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center shrink-0">
-          <LocalHospital className="text-white" sx={{ fontSize: 20 }} />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold text-primary-600 tracking-widest uppercase leading-none">Biopassion HMS</p>
-          <p className="text-xs font-black text-slate-800 leading-tight">Level 4 Hospital</p>
-        </div>
+    <aside className={`h-full flex flex-col bg-white overflow-y-auto transition-all ${isSidebarExpanded ? 'w-64' : 'w-20'}`}>
+      {/* Logo Component (condensed if needed, but here we just hide labels when closed) */}
+      <div className="flex items-center justify-between px-5 py-5 border-b border-slate-100 min-h-[72px]">
+        {isSidebarExpanded && (
+          <div className="flex items-center gap-3 animate-in fade-in duration-300">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shrink-0">
+              <LocalHospital className="text-white" sx={{ fontSize: 18 }} />
+            </div>
+            <div>
+               <p className="text-[9px] font-black text-primary-600 tracking-widest uppercase leading-none">Biopassion HMS</p>
+               <p className="text-xs font-black text-slate-800 leading-tight">Level 4 Hospital</p>
+            </div>
+          </div>
+        )}
+        {/* Spacer for minimized mode to keep the top-border consistent */}
+        {!isSidebarExpanded && <div className="h-2" />}
       </div>
 
       {/* Role badge */}
-      <div className="px-5 py-2 border-b border-slate-100">
-        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${roleBadge.cls}`}>
-          {roleBadge.label}
-        </span>
-      </div>
+      {isSidebarExpanded && (
+        <div className="px-5 py-3 border-b border-slate-100 animate-in fade-in duration-300">
+          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${roleBadge.cls}`}>
+            {roleBadge.label}
+          </span>
+        </div>
+      )}
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto scrollbar-hide">
         {visibleNav.map(({ group, items }) => (
-          <div key={group}>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-1.5">{group}</p>
-            <div className="space-y-0.5">
-              {items.map(item => <NavItem key={item.to} {...item} />)}
+          <div key={group} className="space-y-1">
+            {isSidebarExpanded && <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2">{group}</p>}
+            <div className="space-y-1">
+              {items.map(item => (
+                <NavLink key={item.to} to={item.to} end={item.exact}
+                  className={({ isActive }) => 
+                    `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
+                    ${isActive ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`
+                  }
+                >
+                  <item.icon sx={{ fontSize: 20 }} className={isSidebarExpanded ? '' : 'mx-auto'} />
+                  {isSidebarExpanded && <span className="text-sm font-bold truncate">{item.label}</span>}
+                  {!isSidebarExpanded && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
+                      {item.label}
+                    </div>
+                  )}
+                </NavLink>
+              ))}
             </div>
           </div>
         ))}
@@ -153,91 +193,158 @@ export default function Layout() {
 
       {/* User footer */}
       <div className="p-3 border-t border-slate-100">
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors">
+        <div className={`flex items-center gap-3 p-2 rounded-2xl ${isSidebarExpanded ? 'bg-slate-50' : ''}`}>
           <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
             <AccountCircle className="text-primary-600" sx={{ fontSize: 20 }} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-800 truncate">{displayName}</p>
-            <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
-          </div>
-          <button onClick={handleSignOut} title="Sign out"
-            className="text-slate-400 hover:text-red-500 transition-colors">
-            <Logout sx={{ fontSize: 16 }} />
-          </button>
+          {isSidebarExpanded && (
+            <div className="flex-1 min-w-0 animate-in fade-in duration-300">
+              <p className="text-[11px] font-black text-slate-800 truncate">{profile?.first_name || 'User'}</p>
+              <p className="text-[10px] text-slate-500 truncate">{roleBadge.label}</p>
+            </div>
+          )}
+          {isSidebarExpanded && (
+            <button onClick={handleSignOut} title="Sign out" className="text-slate-400 hover:text-red-500 transition-colors">
+              <Logout sx={{ fontSize: 16 }} />
+            </button>
+          )}
         </div>
       </div>
     </aside>
   );
 
-  const showSidebar = ['admin', 'hr', 'doctor', 'nurse', 'triage', 'reception'].includes(role);
+  const showSidebar = !isLegacyModule && ['admin', 'hr', 'doctor', 'nurse', 'triage', 'reception'].includes(role);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-white">
       {/* Desktop sidebar */}
       {showSidebar && (
-        <div className="hidden md:flex h-full flex-col">
+        <div className={`hidden md:flex h-full flex-col transition-all duration-300 ease-in-out border-r border-slate-100 ${isSidebarExpanded ? 'w-64' : 'w-20'}`}>
           <Sidebar />
         </div>
       )}
 
-      {/* Mobile sidebar overlay */}
-      {showSidebar && sidebarOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <div className="relative z-10 h-full"><Sidebar /></div>
-          <button onClick={() => setSidebarOpen(false)} className="absolute top-4 left-[17rem] z-20 text-white">
-            <Close />
-          </button>
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        <div className="fixed top-6 right-8 z-[100] flex items-center gap-4 animate-in slide-in-from-top-4 duration-700">
+          <div className="hidden sm:flex flex-col items-end gap-0.5 pointer-events-none">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+              {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}
+            </p>
+            <p className="text-xs font-black text-slate-800 leading-none">
+              {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+          <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
+          <NotificationBell />
         </div>
-      )}
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top nav */}
-        <header className="flex items-center justify-between px-4 md:px-6 h-14 bg-white border-b border-slate-200 shrink-0">
-          <div className="flex items-center gap-3">
-            {showSidebar && (
-              <button className="md:hidden text-slate-500 hover:text-slate-800" onClick={() => setSidebarOpen(true)}>
-                <Menu />
-              </button>
-            )}
-            {!showSidebar && (
-               <div className="flex items-center gap-2">
-                 <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                   <LocalHospital className="text-white" sx={{ fontSize: 18 }} />
+        {/* Unified Toggle Button (Ghost Style) */}
+        {showSidebar && (
+          <button 
+            onClick={toggleSidebar}
+            className={`fixed top-6 z-50 w-10 h-10 text-slate-400 hover:text-slate-800 transition-all duration-300 ease-in-out hover:scale-110 active:scale-95
+              ${isSidebarExpanded ? 'left-[14.5rem]' : 'left-5'}`}
+          >
+            {isSidebarExpanded ? <Close sx={{ fontSize: 24 }} /> : <Menu sx={{ fontSize: 24 }} />}
+          </button>
+        )}
+
+        {/* Unified App Header for non-sidebar users (Legacy Modules) */}
+        {!showSidebar && isLegacyModule && (
+           <div className="absolute top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 z-50 flex items-center justify-between px-6 shadow-sm">
+             <div className="flex items-center gap-4">
+               <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <LocalHospital className="text-white" sx={{ fontSize: 20 }} />
                  </div>
-                 <span className="font-bold text-slate-800 tracking-wide">Biopassion HMS</span>
-                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 ${roleBadge.cls}`}>
-                   {roleBadge.label}
-                 </span>
+                 <div className="flex flex-col">
+                   <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest leading-none">Biopassion HMS</p>
+                   <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                     {location.pathname === '/pharmacy' ? 'Pharmacy' : 'Laboratory'}
+                   </p>
+                 </div>
                </div>
-            )}
-          </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-4">
-            <NotificationBell />
-            <span className="hidden sm:block text-xs text-slate-500 font-medium border-r border-slate-200 pr-4">
-              {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
-            {!showSidebar && (
-              <div className="flex items-center gap-3 pl-1">
-                <div className="hidden md:block text-right">
-                  <p className="text-xs font-bold text-slate-800">{displayName}</p>
-                </div>
-                <button onClick={handleSignOut} title="Sign out" className="text-slate-400 hover:text-red-500 transition-colors">
-                  <Logout sx={{ fontSize: 18 }} />
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
+             </div>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          <Outlet />
+             <div className="flex items-center gap-6 pr-[240px]"> {/* Distanced from floating date/notif */}
+               {/* Module Actions (e.g., Refresh for Lab) */}
+               {location.pathname === '/lab' && (
+                 <button 
+                   onClick={() => window.dispatchEvent(new CustomEvent('hms-refresh-lab'))}
+                   className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-xs rounded-xl transition-all border border-slate-200 group mr-4"
+                 >
+                   <Refresh sx={{ fontSize: 18 }} className="group-hover:rotate-180 transition-transform duration-500" />
+                   Refresh
+                 </button>
+               )}
+
+               {/* User Context & Logout */}
+               <div className="flex items-center gap-4 border-l border-slate-200 pl-6 h-10">
+                 <div className="text-right whitespace-nowrap">
+                   <p className="text-xs font-black text-slate-800 leading-none">{displayName}</p>
+                   <p className="text-[10px] font-bold text-primary-600 uppercase tracking-widest mt-1">{roleBadge.label}</p>
+                 </div>
+                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 text-slate-500 shadow-inner">
+                   <AccountCircle sx={{ fontSize: 24 }} />
+                 </div>
+                 <button onClick={handleSignOut} title="Sign out" className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all border border-slate-200 flex items-center justify-center">
+                   <Logout sx={{ fontSize: 20 }} />
+                 </button>
+               </div>
+             </div>
+           </div>
+        )}
+
+        {!showSidebar && !isLegacyModule && (
+           <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
+             <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
+                <LocalHospital className="text-white" sx={{ fontSize: 20 }} />
+             </div>
+             <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Biopassion HMS</p>
+           </div>
+        )}
+
+        <button className="md:hidden absolute top-6 left-6 z-50 w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-lg" 
+          onClick={() => setMobileMenuOpen(true)}>
+          <Menu sx={{ fontSize: 20 }} />
+        </button>
+
+        {/* Main Page View */}
+        <main className={`flex-1 min-w-0 max-w-full overflow-y-auto overflow-x-hidden ${isLegacyModule ? 'pt-16' : ''}`}>
+          <div className="p-0 min-w-0 max-w-full">
+             <Outlet />
+          </div>
         </main>
       </div>
+
+      {showSidebar && mobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] flex md:hidden">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+          <div className="relative z-10 w-64 h-full">
+             <aside className="w-full h-full bg-white flex flex-col shadow-2xl">
+                <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                   <span className="font-black text-slate-800">Menu</span>
+                   <button onClick={() => setMobileMenuOpen(false)}><Close /></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                   {visibleNav.map(({ group, items }) => (
+                     <div key={group}>
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{group}</p>
+                       <div className="space-y-1">
+                          {items.map(item => (
+                            <NavLink key={item.to} to={item.to} onClick={() => setMobileMenuOpen(false)}
+                              className={({ isActive }) => `flex items-center gap-3 p-3 rounded-xl font-bold text-sm ${isActive ? 'bg-primary-600 text-white' : 'text-slate-600'}`}>
+                               <item.icon sx={{ fontSize: 20 }} /> {item.label}
+                            </NavLink>
+                          ))}
+                       </div>
+                     </div>
+                   ))}
+                </div>
+             </aside>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

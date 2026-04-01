@@ -11,7 +11,7 @@ export const ROLE_PERMISSIONS = {
     'inventory', 'billing',
     'hr', 'reports', 'settings',
   ],
-  reception: ['patients', 'ward_map', 'prices', 'inventory'],
+  reception: ['patients', 'prices', 'inventory'],
   doctor:    ['patients', 'opd', 'ipd', 'ward_map'],
   triage:    ['triage'],
   nurse:     ['ipd', 'ward_map'],

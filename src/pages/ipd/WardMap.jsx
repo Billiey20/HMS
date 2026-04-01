@@ -4,18 +4,18 @@ import { ipdService } from '../../services/ipd';
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const BED_STATUS = {
-  available:   { label: 'Available',   bg: 'bg-emerald-100 border-emerald-300 hover:bg-emerald-200',  dot: 'bg-emerald-500', text: 'text-emerald-700' },
-  occupied:    { label: 'Occupied',    bg: 'bg-red-100 border-red-300 hover:bg-red-200',              dot: 'bg-red-500',     text: 'text-red-700' },
+  available: { label: 'Available', bg: 'bg-emerald-100 border-emerald-300 hover:bg-emerald-200', dot: 'bg-emerald-500', text: 'text-emerald-700' },
+  occupied: { label: 'Occupied', bg: 'bg-red-100 border-red-300 hover:bg-red-200', dot: 'bg-red-500', text: 'text-red-700' },
   maintenance: { label: 'Maintenance', bg: 'bg-slate-200 border-slate-300 cursor-not-allowed opacity-60', dot: 'bg-slate-400', text: 'text-slate-500' },
-  reserved:    { label: 'Reserved',    bg: 'bg-amber-100 border-amber-300',                           dot: 'bg-amber-500',   text: 'text-amber-700' },
+  reserved: { label: 'Reserved', bg: 'bg-amber-100 border-amber-300', dot: 'bg-amber-500', text: 'text-amber-700' },
 };
 
 const WARD_COLOR = {
-  blue:   { header: 'bg-blue-600',    light: 'bg-blue-50 border-blue-100' },
-  pink:   { header: 'bg-pink-500',    light: 'bg-pink-50 border-pink-100' },
-  violet: { header: 'bg-violet-600',  light: 'bg-violet-50 border-violet-100' },
-  amber:  { header: 'bg-amber-500',   light: 'bg-amber-50 border-amber-100' },
-  red:    { header: 'bg-red-600',     light: 'bg-red-50 border-red-100' },
+  blue: { header: 'bg-blue-600', light: 'bg-blue-50 border-blue-100' },
+  pink: { header: 'bg-pink-500', light: 'bg-pink-50 border-pink-100' },
+  violet: { header: 'bg-violet-600', light: 'bg-violet-50 border-violet-100' },
+  amber: { header: 'bg-amber-500', light: 'bg-amber-50 border-amber-100' },
+  red: { header: 'bg-red-600', light: 'bg-red-50 border-red-100' },
 };
 
 function daysSince(dateStr) {
@@ -24,11 +24,11 @@ function daysSince(dateStr) {
 }
 
 export default function WardMap() {
-  const [selected, setSelected]         = useState(null);
-  const [wardFilter, setWardFilter]     = useState('all');
-  const [wards, setWards]               = useState([]);
-  const [occupancy, setOccupancy]       = useState([]);
-  const [loading, setLoading]           = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [wardFilter, setWardFilter] = useState('all');
+  const [wards, setWards] = useState([]);
+  const [occupancy, setOccupancy] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -71,10 +71,10 @@ export default function WardMap() {
   });
 
   const allBeds = wardGrid.flatMap(w => w.beds);
-  const totalOccupied    = allBeds.filter(b => b.status === 'occupied').length;
-  const totalAvailable   = allBeds.filter(b => b.status === 'available').length;
+  const totalOccupied = allBeds.filter(b => b.status === 'occupied').length;
+  const totalAvailable = allBeds.filter(b => b.status === 'available').length;
   const totalMaintenance = allBeds.filter(b => b.status === 'maintenance').length;
-  const totalReserved    = allBeds.filter(b => b.status === 'reserved').length;
+  const totalReserved = allBeds.filter(b => b.status === 'reserved').length;
 
   const displayedWards = wardFilter === 'all' ? wardGrid : wardGrid.filter(w => w.id === wardFilter);
 
@@ -88,42 +88,46 @@ export default function WardMap() {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Ward & Bed Map</h1>
-          <p className="text-sm text-slate-500">Live bed occupancy from the Ward Central system</p>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Ward & Bed Occupancy</h1>
         </div>
-        <button onClick={loadData} className="btn-secondary text-xs uppercase font-black">Refresh Map</button>
       </div>
 
-      {/* Summary row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Summary section - Standalone text */}
+      <div className="flex flex-wrap gap-12 py-4 border-y border-slate-100">
         {[
-          { label: 'Occupied',    count: totalOccupied,    cls: 'bg-red-50 border-red-200 text-red-700' },
-          { label: 'Available',   count: totalAvailable,   cls: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-          { label: 'Reserved',    count: totalReserved,    cls: 'bg-amber-50 border-amber-200 text-amber-700' },
-          { label: 'Maintenance', count: totalMaintenance, cls: 'bg-slate-100 border-slate-200 text-slate-600' },
-        ].map(({ label, count, cls }) => (
-          <div key={label} className={`card border p-4 text-center ${cls}`}>
-            <p className="text-2xl font-black">{count}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest mt-0.5">{label}</p>
+          { label: 'Occupied', count: totalOccupied, color: 'text-red-600' },
+          { label: 'Available', count: totalAvailable, color: 'text-emerald-600' },
+          { label: 'Reserved', count: totalReserved, color: 'text-amber-600' },
+          { label: 'Maintenance', count: totalMaintenance, color: 'text-slate-500' },
+        ].map(({ label, count, color }) => (
+          <div key={label} className="flex flex-col min-w-[100px]">
+            <span className="text-4xl font-black text-slate-900 leading-none tabular-nums">{count}</span>
+            <span className={`text-xs font-bold ${color} mt-2`}>{label}</span>
           </div>
         ))}
       </div>
 
       {/* Ward filter */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Filter Ward:</span>
-        <button onClick={() => setWardFilter('all')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${wardFilter === 'all' ? 'bg-slate-800 text-white border-transparent shadow-lg shadow-slate-200' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-          All Wards
-        </button>
-        {wards.map(w => (
-          <button key={w.id} onClick={() => setWardFilter(w.id)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${wardFilter === w.id ? `${WARD_COLOR[w.color || 'blue'].header} text-white border-transparent shadow-lg shadow-primary-200` : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
-            {w.name}
+      <div className="flex gap-4 flex-wrap items-center justify-between">
+        <div className="flex gap-2 flex-wrap items-center">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Filter Ward:</span>
+          <button onClick={() => setWardFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${wardFilter === 'all' ? 'bg-slate-800 text-white border-transparent shadow-lg shadow-slate-200' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+            All Wards
           </button>
-        ))}
+          {wards.map(w => (
+            <button key={w.id} onClick={() => setWardFilter(w.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${wardFilter === w.id ? `${WARD_COLOR[w.color || 'blue'].header} text-white border-transparent shadow-lg shadow-primary-200` : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+              {w.name}
+            </button>
+          ))}
+        </div>
+        <button onClick={loadData} className="flex items-center gap-2 text-slate-400 hover:text-primary-600 transition-colors">
+           <Hotel sx={{ fontSize: 18 }} />
+           <span className="text-xs font-black uppercase tracking-widest">Refresh Map</span>
+        </button>
       </div>
 
       {/* Ward grids */}
@@ -132,45 +136,52 @@ export default function WardMap() {
           const cfg = WARD_COLOR[ward.color || 'blue'];
           const occupied = ward.beds.filter(b => b.status === 'occupied').length;
           return (
-            <div key={ward.id} className={`card overflow-hidden border ${cfg.light}`}>
-              {/* Ward header */}
-              <div className={`${cfg.header} px-5 py-3 flex items-center justify-between`}>
-                <div className="flex items-center gap-2">
-                  <Hotel className="text-white" sx={{ fontSize: 18 }} />
-                  <h2 className="font-black text-white text-sm uppercase tracking-tight">{ward.name}</h2>
+            <div key={ward.id} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-8 rounded-full ${cfg.header}`} />
+                  <div>
+                    <h2 className="text-lg font-black text-slate-800 leading-none">{ward.name}</h2>
+                    <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Active Inpatient Ward</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-white/80 text-[10px] font-black uppercase">
-                  <span>{occupied}/{ward.beds.length} occupied</span>
-                  <div className="w-24 h-1.5 bg-white/30 rounded-full overflow-hidden">
-                    <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${(occupied / Math.max(1, ward.beds.length)) * 100}%` }} />
+                <div className="flex flex-col items-end">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-sm font-black text-slate-800">{occupied}</span>
+                    <span className="text-xs font-bold text-slate-400">/ {ward.beds.length} beds occupied</span>
+                  </div>
+                  <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${cfg.header} rounded-full transition-all duration-500`} style={{ width: `${(occupied / Math.max(1, ward.beds.length)) * 100}%` }} />
                   </div>
                 </div>
               </div>
 
-              {/* Beds grid */}
-              <div className="p-4 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              <div className="p-0 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                 {ward.beds.map(bed => {
                   const st = BED_STATUS[bed.status || 'available'];
                   return (
                     <button
                       key={bed.id}
                       onClick={() => bed.status !== 'maintenance' && setSelected({ ward, bed })}
-                      className={`relative p-3 rounded-2xl border-2 text-left transition-all text-xs ${st.bg}
-                        ${selected?.bed?.id === bed.id ? 'ring-2 ring-offset-2 ring-slate-800 scale-95 shadow-inner' : 'hover:scale-[1.02]'}
-                        ${bed.status === 'maintenance' ? '' : 'cursor-pointer active:scale-90 shadow-sm'}`}
+                      className={`relative p-4 rounded-2xl border transition-all text-left group
+                        ${bed.status === 'occupied' ? 'bg-white border-slate-200' : 'bg-slate-50 border-transparent'}
+                        ${selected?.bed?.id === bed.id ? 'ring-2 ring-primary-600 scale-95' : 'hover:border-slate-300 hover:-translate-y-0.5'}
+                        ${bed.status === 'maintenance' ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
-                      {/* Status dot */}
-                      <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${st.dot} shadow-sm`} />
-                      <p className="font-black text-slate-800">{bed.no}</p>
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="text-sm font-black text-slate-800">{bed.no}</span>
+                        <div className={`w-2 h-2 rounded-full ${st.dot}`} />
+                      </div>
+
                       {bed.patient ? (
-                        <>
-                          <p className={`font-black mt-1 leading-tight ${st.text} truncate uppercase text-[10px]`}>
+                        <div className="space-y-0.5">
+                          <p className="font-extrabold text-[#1a1a1a] leading-tight truncate text-[11px]">
                             {bed.patient.name.split(' ')[0]}
                           </p>
-                          <p className="text-slate-500 text-[10px] font-bold mt-0.5">{daysSince(bed.patient.admittedAt)}d ago</p>
-                        </>
+                          <p className="text-slate-400 text-[10px] font-bold">{daysSince(bed.patient.admittedAt)}d stayed</p>
+                        </div>
                       ) : (
-                        <p className={`mt-1 font-black uppercase text-[10px] ${st.text}`}>{st.label}</p>
+                        <p className={`font-bold text-[10px] ${st.text}`}>{st.label}</p>
                       )}
                     </button>
                   );
@@ -194,15 +205,15 @@ export default function WardMap() {
               <p className="label">Location</p>
               <p className="font-black text-slate-800 text-lg uppercase">{selected.ward.name}</p>
             </div>
-            
+
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-               <p className="label">Current Status</p>
-               <div className="flex items-center gap-2 mt-1">
-                  <span className={`w-3 h-3 rounded-full ${BED_STATUS[selected.bed.status || 'available'].dot}`} />
-                  <span className={`font-black uppercase text-sm ${BED_STATUS[selected.bed.status || 'available'].text}`}>
-                    {BED_STATUS[selected.bed.status || 'available'].label}
-                  </span>
-               </div>
+              <p className="label">Current Status</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`w-3 h-3 rounded-full ${BED_STATUS[selected.bed.status || 'available'].dot}`} />
+                <span className={`font-black uppercase text-sm ${BED_STATUS[selected.bed.status || 'available'].text}`}>
+                  {BED_STATUS[selected.bed.status || 'available'].label}
+                </span>
+              </div>
             </div>
 
             {selected.bed.patient ? (

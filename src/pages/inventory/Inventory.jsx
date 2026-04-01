@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Inventory2, Search, Add, Warning,
+  Inventory2, Search, Add, Warning, Refresh,
   TrendingDown, ArrowUpward, ArrowDownward
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
@@ -54,7 +54,7 @@ function CreateItemModal({ onClose, onSave }) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-             <div>
+            <div>
               <label className="label">Reorder Level *</label>
               <input type="number" className="input" value={form.reorder_level} onChange={f('reorder_level')} placeholder="Min stock" />
             </div>
@@ -209,12 +209,12 @@ export default function Inventory() {
 
   const handleCreate = async (payload) => {
     try {
-      if(!payload.name) return;
+      if (!payload.name) return;
       await inventoryService.createItem(payload);
       await loadData();
     } catch (error) {
-       console.error("Failed to create item", error);
-       alert("Failed to create catalog item");
+      console.error("Failed to create item", error);
+      alert("Failed to create catalog item");
     }
   };
 
@@ -238,7 +238,7 @@ export default function Inventory() {
     try {
       // Find actual item to check limit
       const i = items.find(it => it.id === form.itemId);
-      if(!i || i.current_qty < parseInt(form.qty)) {
+      if (!i || i.current_qty < parseInt(form.qty)) {
         alert("Cannot dispense more than what is in stock!");
         return;
       }
@@ -249,14 +249,14 @@ export default function Inventory() {
         userId: user?.id,
       });
       await loadData();
-    } catch(err) {
+    } catch (err) {
       console.error("Failed to dispense stock", err);
       alert("Error dispensing stock");
     }
   };
 
   const lowStock = items.filter(i => i.current_qty < i.reorder_level);
-  
+
   // Expiry check (needs to crawl transactions if items table doesn't have expiry, or we just rely on transactions joined!)
   // In a robust system, expiry is tracked per lot/batch. Here we are simplifying.
 
@@ -265,11 +265,11 @@ export default function Inventory() {
     .filter(i => i.name.toLowerCase().includes(search.toLowerCase()) || (i.category || '').toLowerCase().includes(search.toLowerCase()));
 
   if (loading) {
-     return (
-       <div className="p-8 flex items-center justify-center min-h-[50vh]">
-         <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary-600 animate-spin" />
-       </div>
-     );
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-primary-600 animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -277,60 +277,44 @@ export default function Inventory() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-800">Inventory Catalog</h1>
-            <p className="text-sm text-slate-500">Manage items and set reorder limits</p>
-          </div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Supply & Pharmacy Inventory</h1>
+          <p className="text-sm font-bold text-slate-400 mt-1">{items.length} Active Catalog Items</p>
         </div>
-        <div className="flex gap-2">
-           <button onClick={() => setShowCreate(true)} className="btn-primary shrink-0">
-             <Add sx={{ fontSize: 18 }} /> Register New Item
-           </button>
-           <button onClick={() => setShowIssue(true)} className="btn-secondary shrink-0">
-             <ArrowDownward sx={{ fontSize: 16 }} /> Issue
-           </button>
-           <button onClick={() => setShowReceive(true)} className="btn-primary shrink-0 transition-shadow">
-             <ArrowUpward sx={{ fontSize: 16 }} /> Receive Stock
-           </button>
+        <div className="flex items-center gap-3 pr-64"> {/* pr-64 to clear the floating date/notification module */}
+          <button onClick={() => setShowIssue(true)} className="btn-secondary bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white">
+            <ArrowDownward sx={{ fontSize: 18 }} /> Issue
+          </button>
+          <button onClick={() => setShowReceive(true)} className="btn-secondary bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white">
+            <ArrowUpward sx={{ fontSize: 18 }} /> Receive
+          </button>
+          <button onClick={() => setShowCreate(true)} className="btn-primary shadow-xl shadow-primary-500/10 transition-all active:scale-95">
+            <Add sx={{ fontSize: 18 }} /> New Item
+          </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-4 text-center border-slate-200">
-          <p className="text-3xl font-black text-slate-800">{items.length}</p>
-          <p className="text-xs font-bold text-slate-500 capitalize tracking-wide">Catalog items</p>
-        </div>
-        <div className="card p-4 text-center border-red-100 bg-red-50">
-          <p className="text-3xl font-black text-red-700">{lowStock.length}</p>
-          <p className="text-xs font-bold text-red-500 capitalize tracking-wide">Below reorder</p>
-        </div>
-        <div className="card p-4 text-center border-emerald-100 bg-emerald-50">
-          <p className="text-3xl font-black text-emerald-700">{items.filter(i => i.current_qty >= i.reorder_level).length}</p>
-          <p className="text-xs font-bold text-emerald-500 capitalize tracking-wide">Adequately stocked</p>
-        </div>
-        <div className="card p-4 text-center border-blue-100 bg-blue-50">
-          <p className="text-3xl font-black text-blue-700">{transactions.length}</p>
-          <p className="text-xs font-bold text-blue-500 capitalize tracking-wide">Recent txn</p>
-        </div>
-      </div>
-
-      {/* Alerts */}
+      {/* Dynamic Notification Module */}
       {lowStock.length > 0 && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
-          <div className="flex items-center gap-2 mb-2">
-            <Warning className="text-red-500" sx={{ fontSize: 18 }} />
-            <p className="text-sm font-bold text-red-800">Low Stock — {lowStock.length} items breached reorder level:</p>
+        <div className="p-6 bg-red-50/50 border-y border-red-100 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-4">
+            <Warning className="text-red-600" sx={{ fontSize: 28 }} />
+            <h3 className="text-lg font-black text-red-900 leading-none">Stock Replenishment Required</h3>
           </div>
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {lowStock.map(i => <span key={i.id} className="badge badge-red">{i.name} ({i.current_qty} {i.unit})</span>)}
+          <div className="flex flex-wrap gap-4 md:justify-end max-w-2xl">
+            {lowStock.map(i => (
+              <div key={i.id} className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-600 tracking-tight">{i.name}</span>
+                <span className="text-xs font-black text-red-600">
+                  {i.current_qty} {i.unit}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
-        {[{ key: 'stock', label: '📦 Stock Ledger' }, { key: 'txn', label: '📄 Transaction History' }].map(({ key, label }) => (
+      <div className="flex gap-8 border-b border-slate-200">
+        {[{ key: 'stock', label: 'Stock Ledger' }, { key: 'txn', label: 'Transaction History' }].map(({ key, label }) => (
           <button key={key} onClick={() => setActiveTab(key)}
             className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors -mb-px
               ${activeTab === key ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
@@ -354,54 +338,54 @@ export default function Inventory() {
           </div>
           <div className="card overflow-hidden">
             {filtered.length === 0 ? (
-               <div className="p-10 text-center text-slate-400 font-bold">No catalog items found. Click "New Catalog Item" to build out your hospital inventory.</div>
+              <div className="p-10 text-center text-slate-400 font-bold">No catalog items found. Click "New Catalog Item" to build out your hospital inventory.</div>
             ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left min-w-[750px]">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Item name</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Category</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Live stock</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Reorder level</th>
-                        <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filtered.map(item => {
-                        const isLow = item.current_qty < item.reorder_level;
-                        const isWarning = !isLow && item.current_qty < item.reorder_level * 1.5;
-                        const denom = Math.max(item.reorder_level * 3, 10);
-                        const pct = Math.min(100, Math.round((item.current_qty / denom) * 100));
-                        const barColor = isLow ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-emerald-500';
-                        return (
-                          <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${isLow ? 'bg-red-50/40' : ''}`}>
-                            <td className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
-                            <td className="px-4 py-3"><span className="badge badge-slate text-xs">{item.category}</span></td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className={`text-xs font-bold ${isLow ? 'text-red-600' : 'text-slate-700'}`}>
-                                   {item.current_qty} <span className="font-normal text-slate-400">{item.unit}</span>
-                                </span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left min-w-[750px]">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Item name</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Category</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Live stock</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Reorder level</th>
+                      <th className="px-4 py-3 text-xs font-bold text-slate-500 capitalize tracking-wide">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filtered.map(item => {
+                      const isLow = item.current_qty < item.reorder_level;
+                      const isWarning = !isLow && item.current_qty < item.reorder_level * 1.5;
+                      const denom = Math.max(item.reorder_level * 3, 10);
+                      const pct = Math.min(100, Math.round((item.current_qty / denom) * 100));
+                      const barColor = isLow ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-emerald-500';
+                      return (
+                        <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${isLow ? 'bg-red-50/40' : ''}`}>
+                          <td className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
+                          <td className="px-4 py-3"><span className="badge badge-slate text-xs">{item.category}</span></td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
                               </div>
-                            </td>
-                            <td className="px-4 py-3 text-slate-500 text-xs">{item.reorder_level} {item.unit}</td>
-                            <td className="px-4 py-3">
-                              {isLow
-                                ? <span className="badge badge-red">⚠ Low</span>
-                                : isWarning
-                                  ? <span className="badge badge-amber">Low Soon</span>
-                                  : <span className="badge badge-green">OK</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              <span className={`text-xs font-bold ${isLow ? 'text-red-600' : 'text-slate-700'}`}>
+                                {item.current_qty} <span className="font-normal text-slate-400">{item.unit}</span>
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 text-xs">{item.reorder_level} {item.unit}</td>
+                          <td className="px-4 py-3">
+                            {isLow
+                              ? <span className="text-red-600 font-extrabold text-xs">Low</span>
+                              : isWarning
+                                ? <span className="text-amber-600 font-extrabold text-xs">Reorder Soon</span>
+                                : <span className="text-emerald-600 font-extrabold text-xs">OK</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -435,9 +419,9 @@ export default function Inventory() {
                   </tr>
                 ))}
                 {transactions.length === 0 && (
-                   <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400 font-bold">No transaction history found.</td>
-                   </tr>
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-400 font-bold">No transaction history found.</td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -447,7 +431,7 @@ export default function Inventory() {
 
       {showCreate && <CreateItemModal onClose={() => setShowCreate(false)} onSave={handleCreate} />}
       {showReceive && <ReceiveStockModal items={items} onClose={() => setShowReceive(false)} onSave={handleReceive} />}
-      {showIssue   && <IssueStockModal  items={items} onClose={() => setShowIssue(false)} onSave={handleIssue} />}
+      {showIssue && <IssueStockModal items={items} onClose={() => setShowIssue(false)} onSave={handleIssue} />}
     </div>
   );
 }
