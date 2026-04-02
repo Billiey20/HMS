@@ -45,11 +45,11 @@ export const patientService = {
       { data: bills, error: bErr },
       { data: prescriptions, error: rErr }
     ] = await Promise.all([
-      supabase.from('opd_visits').select('*, consultations(*), lab_orders(*, lab_order_items(*))').eq('patient_id', patientId).order('created_at', { ascending: false }),
-      supabase.from('admissions').select('*, wards(name), clinical_notes(*), vitals_records(*)').eq('patient_id', patientId).order('admitted_at', { ascending: false }),
-      supabase.from('vitals_records').select('*').eq('patient_id', patientId).order('recorded_at', { ascending: false }),
-      supabase.from('bills').select('*, bill_items(*), payments(*)').eq('patient_id', patientId).order('created_at', { ascending: false }),
-      supabase.from('prescriptions').select('*, prescription_items(*)').eq('patient_id', patientId).order('prescribed_at', { ascending: false })
+      supabase.from('opd_visits').select('*, patients(*, staff:users!registered_by(first_name, last_name)), consultations(*, staff:users!doctor_id(first_name, last_name)), lab_orders(*, lab_order_items(*), staff:users!ordered_by(first_name, last_name)), staff:users!triaged_by(first_name, last_name)').eq('patient_id', patientId).order('created_at', { ascending: false }),
+      supabase.from('admissions').select('*, wards(name), clinical_notes(*, staff:users!written_by(first_name, last_name)), vitals_records(*, staff:users!recorded_by(first_name, last_name)), admitting_staff:users!admitted_by(first_name, last_name)').eq('patient_id', patientId).order('admitted_at', { ascending: false }),
+      supabase.from('vitals_records').select('*, staff:users!recorded_by(first_name, last_name)').eq('patient_id', patientId).order('recorded_at', { ascending: false }),
+      supabase.from('bills').select('*, bill_items(*), payments(*), staff:users!created_by(first_name, last_name)').eq('patient_id', patientId).order('created_at', { ascending: false }),
+      supabase.from('prescriptions').select('*, prescription_items(*), staff:users!prescribed_by(first_name, last_name)').eq('patient_id', patientId).order('prescribed_at', { ascending: false })
     ]);
 
     if (vErr) console.error("History: Visits Error:", vErr);
