@@ -40,7 +40,7 @@ function DispenseModal({ rx, stockMap, onClose, onDispense }) {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <p className="font-bold text-slate-800">{item.drug_name}</p>
-                    <p className="text-xs text-slate-500">{item.dosage} · {item.frequency} · {item.duration} · {item.route}</p>
+                    <p className="text-xs text-slate-500">{item.dose} · {item.frequency} · {item.duration} · {item.route}</p>
                   </div>
                   {alreadyDone && <span className="badge badge-green shrink-0">Dispensed ✓</span>}
                 </div>
@@ -393,7 +393,7 @@ export default function Pharmacy() {
                     }
                     <div className="min-w-0">
                       <p className="font-semibold text-slate-800 truncate">{item.drug_name}</p>
-                      <p className="text-slate-500">{item.quantity} × {item.dosage} · {(item.quantity_dispensed||0)} dispensed</p>
+                      <p className="text-slate-500">{item.quantity} × {item.dose} · {(item.quantity_dispensed||0)} dispensed</p>
                     </div>
                   </div>
                 ))}

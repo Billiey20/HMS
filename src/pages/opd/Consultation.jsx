@@ -359,7 +359,7 @@ export default function Consultation() {
 
   const handleRequestTests = async () => {
     if (!labTests.length && !imagingOrders.length) {
-       notify.warning("No tests selected!"); return;
+       notify.warn("No tests selected!"); return;
     }
     const yes = window.confirm("Request tests & pause this consultation?");
     if (!yes) return;
@@ -397,7 +397,7 @@ export default function Consultation() {
       order.lab_order_items?.some(item => item.status === 'completed' && !visitedResults.has(item.id))
     );
     if (pendingReview) {
-      notify.warning("Please review all completed lab results before finalising this consultation.");
+      notify.warn("Please review all completed lab results before finalising this consultation.");
       setActiveTab(3); // Go to lab results tab
       return;
     }
@@ -422,7 +422,7 @@ export default function Consultation() {
           prescribed_by: user.id,
           status: 'pending'
         }, rxItems.map(r => ({
-           drug_name: r.drug, dosage: r.dose, frequency: r.frequency, duration: r.duration, route: r.route, quantity: parseInt(r.qty) || 1
+           drug_name: r.drug, dose: r.dose, frequency: r.frequency, duration: r.duration, route: r.route, quantity: parseInt(r.qty) || 1
         })));
       }
 

@@ -57,8 +57,9 @@ export const consultationService = {
   },
 
   async createPrescription(payload, items) {
+    const { visit_id, ...prescriptionData } = payload;
     const rxRecord = {
-      ...payload,
+      ...prescriptionData,
       prescribed_at: new Date().toISOString(),
       status: payload.status || 'pending'
     };
