@@ -4,6 +4,7 @@ import { patientService, opdService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PatientRegistrationModal from '../../components/modals/PatientRegistrationModal';
 import PatientHistoryModal from '../../components/modals/PatientHistoryModal';
+import AppointmentBookingModal from '../../components/modals/AppointmentBookingModal';
 import { supabase } from '../../lib/supabase';
 import { Close } from '@mui/icons-material';
 
@@ -65,24 +66,7 @@ export default function PatientCenter() {
     }
   };
 
-  const createEncounter = async (type) => {
-    if (!encounterPatient) return;
-    setQueueing(encounterPatient.id);
-    try {
-      await opdService.createVisit({
-        patient_id: encounterPatient.id,
-        triage_priority: type === 'Emergency' ? 'emergency' : 'normal',
-        status: type === 'Follow-Up' ? 'waiting_doctor' : 'waiting_triage',
-        visit_type: type,
-      });
-      setEncounterPatient(null);
-      await loadPatients();
-    } catch (e) {
-      alert('Failed to create visit: ' + e.message);
-    } finally {
-      setQueueing(null);
-    }
-  };
+
 
   // Debounce search
   useEffect(() => {
@@ -147,7 +131,19 @@ export default function PatientCenter() {
                 return (
                   <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-4 font-mono text-[10px] text-slate-500">{p.patient_no}</td>
-                    <td className="px-5 py-4 font-black text-slate-800">{p.first_name} {p.middle_name} {p.last_name}</td>
+                    <td className="px-5 py-4">
+                      <p className="font-black text-slate-800 leading-tight border-b border-transparent">{p.first_name} {p.middle_name} {p.last_name}</p>
+                      {(p.payment_mode === 'SHA' || p.payment_mode === 'PHC') && (
+                        <span className="inline-flex mt-1.5 px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-black tracking-widest uppercase">
+                          {p.payment_mode} COVERED
+                        </span>
+                      )}
+                      {(!p.payment_mode || p.payment_mode === 'Private') && (
+                        <span className="inline-flex mt-1.5 px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[9px] font-bold tracking-widest uppercase">
+                          PRIVATE
+                        </span>
+                      )}
+                    </td>
                     <td className="px-5 py-4 text-xs font-bold text-slate-600">{p.age} · <span className="capitalize">{p.gender?.toLowerCase()}</span></td>
                     <td className="px-5 py-4 text-xs font-mono text-slate-500">{p.phone || '—'}</td>
                     <td className="px-5 py-4"><StatusBadge status={p.status} /></td>
@@ -218,30 +214,16 @@ export default function PatientCenter() {
         />
       )}
 
-      {/* Visit Modal */}
+      {/* Appointment Booking Modal */}
       {encounterPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
-            <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
-              <h3 className="font-black text-slate-800">New visit</h3>
-              <button onClick={() => setEncounterPatient(null)}><Close className="text-slate-400" /></button>
-            </div>
-            <div className="p-6">
-              <p className="text-sm font-bold text-slate-500 mb-4 tracking-widest capitalize">Patient</p>
-              <p className="text-lg font-black text-slate-800 mb-6">{encounterPatient.first_name} {encounterPatient.last_name}</p>
-
-              <p className="text-xs font-bold text-slate-500 mb-2 capitalize tracking-wide">Select visit type</p>
-              <div className="space-y-2">
-                {['Walk-In', 'Follow-Up', 'Emergency', 'Routine Clinic'].map(type => (
-                  <button key={type} onClick={() => createEncounter(type)} disabled={queueing}
-                    className="w-full text-left px-4 py-3 border border-slate-200 rounded-xl font-bold text-slate-700 hover:border-primary-500 hover:bg-primary-50 hover:text-primary-700 transition-colors">
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <AppointmentBookingModal
+          patient={encounterPatient}
+          onClose={() => setEncounterPatient(null)}
+          onSave={async () => {
+            setEncounterPatient(null);
+            await loadPatients();
+          }}
+        />
       )}
     </div>
   );

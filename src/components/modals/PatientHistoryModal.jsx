@@ -148,11 +148,28 @@ export default function PatientHistoryModal({ patient, onClose }) {
                               </div>
                               <div className="flex-1 min-w-0">
                                  <p className="text-[9px] uppercase font-bold text-slate-400 mb-0.5 tracking-tight">ID Number</p>
-                                 <p className="font-bold text-slate-900">{patient.national_id || 'NOT SET'}</p>
+                                 <p className="font-bold text-slate-900">{patient.national_id || patient.id_number || 'NOT SET'}</p>
                               </div>
                               <div className="flex-1 min-w-0">
                                  <p className="text-[9px] uppercase font-bold text-slate-400 mb-0.5 tracking-tight">Telephone</p>
                                  <p className="font-bold text-slate-900">{patient.phone || 'NOT SET'}</p>
+                              </div>
+                           </div>
+
+                           <div className="flex items-center gap-6 pt-2 border-t border-slate-50">
+                              <div className="flex-1 min-w-0">
+                                 <p className="text-[9px] uppercase font-bold text-slate-400 mb-0.5 tracking-tight">Registration Mode</p>
+                                 <span className={`inline-flex items-center px-1.5 py-0.5 rounded uppercase font-black text-[9px] ${patient.payment_mode === 'SHA' || patient.payment_mode === 'PHC' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                    {patient.payment_mode || 'Private'}
+                                 </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                 <p className="text-[9px] uppercase font-bold text-slate-400 mb-0.5 tracking-tight">SHA Number</p>
+                                 <p className="font-bold text-slate-900 font-mono tracking-tight text-xs">{patient.sha_number || 'N/A'}</p>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                 <p className="text-[9px] uppercase font-bold text-slate-400 mb-0.5 tracking-tight">CR Number</p>
+                                 <p className="font-bold text-slate-900 font-mono tracking-tight text-xs">{patient.cr_number || 'N/A'}</p>
                               </div>
                            </div>
 

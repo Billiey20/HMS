@@ -21,6 +21,7 @@ import Billing from './pages/billing/Billing';
 import HR from './pages/hr/HR';
 import Settings from './pages/settings/Settings';
 import PriceList from './pages/admin/PriceList';
+import Claims from './pages/admin/Claims';
 
 // ── Route Guard (auth) ────────────────────────────────────────────────────────
 function ProtectedRoute({ children }) {
@@ -87,6 +88,7 @@ export default function App() {
 
           {/* Admin */}
           <Route path="admin/prices" element={<RoleGuard section="prices"><PriceList /></RoleGuard>} />
+          <Route path="admin/claims" element={<RoleGuard section="claims"><Claims /></RoleGuard>} />
 
           {/* Reception / Patients */}
           <Route path="reception" element={<RoleGuard section="patients"><ReceptionDashboard /></RoleGuard>} />

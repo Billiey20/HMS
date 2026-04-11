@@ -10,10 +10,21 @@ export const analyticsService = {
       supabase.from('opd_visits').select('*', { count: 'exact', head: true }).gte('created_at', `${today}T00:00:00Z`),
       supabase.from('admissions').select('*', { count: 'exact', head: true }).in('status', ['admitted', 'transferred']),
       supabase.from('lab_orders').select('*', { count: 'exact', head: true }).not('status', 'eq', 'completed'),
-      supabase.from('payments').select('amount').gte('created_at', `${today}T00:00:00Z`),
+      supabase.from('payments').select('amount, method').gte('created_at', `${today}T00:00:00Z`),
     ]);
 
-    const totalRevenue = revenue.data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    let totalRevenue = 0;
+    let revenueInsurance = 0;
+    let revenueCash = 0;
+
+    if (revenue.data) {
+      revenue.data.forEach(p => {
+        const amt = Number(p.amount) || 0;
+        totalRevenue += amt;
+        if (p.method === 'Insurance') revenueInsurance += amt;
+        else if (p.method !== 'Waiver') revenueCash += amt;
+      });
+    }
 
     return {
       patients: patients.count || 0,
@@ -21,6 +32,8 @@ export const analyticsService = {
       inpatients: ipd.count || 0,
       pendingLab: lab.count || 0,
       revenue: totalRevenue,
+      revenueCash,
+      revenueInsurance
     };
   },
 

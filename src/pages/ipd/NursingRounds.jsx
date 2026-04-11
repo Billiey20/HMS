@@ -7,6 +7,8 @@ import { ipdService } from '../../services/ipd';
 import { useAuth } from '../../context/AuthContext';
 import { labService } from '../../services/lab';
 import { supabase } from '../../lib/supabase';
+import LabReportPreview from '../../components/modals/LabReportPreview';
+
 
 const wardColor = { 
   'General Ward': 'text-blue-600', 
@@ -170,6 +172,9 @@ export default function NursingRounds() {
   const [labSummary, setLabSummary]           = useState({ pending: 0, completed: 0, latestResultAt: null });
   const [visitedResults, setVisitedResults]   = useState(new Set());
   const [mar, setMar]                         = useState([]);
+  const [previewItem, setPreviewItem]         = useState(null);
+  const [previewLoading, setPreviewLoading]   = useState(null);
+
 
   const [vitals, setVitals] = useState({ temperature: '', pulse: '', bpSys: '', bpDia: '', respRate: '', spo2: '', bg: '', weight: '' });
   const [newNote, setNewNote] = useState('');
@@ -219,6 +224,32 @@ export default function NursingRounds() {
       console.error(e);
     }
   }, [selectedPatient]);
+
+  // Fetch full lab item with patient join, then open preview modal
+  const handleViewResult = async (item) => {
+    setVisitedResults(p => new Set([...p, item.id]));
+    setPreviewLoading(item.id);
+    try {
+      const { data } = await supabase
+        .from('lab_order_items')
+        .select(`
+          *,
+          validated_by_user:users!validated_by ( id, first_name, last_name ),
+          lab_orders (
+            *,
+            patients ( id, first_name, last_name, gender, age, patient_no, phone )
+          )
+        `)
+        .eq('id', item.id)
+        .single();
+      if (data) setPreviewItem(data);
+    } catch (e) {
+      console.error('Failed to load lab result:', e);
+    } finally {
+      setPreviewLoading(null);
+    }
+  };
+
 
   useEffect(() => {
     ipdService.listAdmissions().then(data => {
@@ -303,6 +334,7 @@ export default function NursingRounds() {
   };
 
   return (
+    <>
     <div className="flex h-[calc(100vh-56px)] overflow-hidden">
       <div className="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col hidden md:flex">
         <div className="px-4 py-4 border-b border-slate-100">
@@ -471,15 +503,16 @@ export default function NursingRounds() {
                                </span>
                              </div>
                              {item.status === 'completed' && (
-                               <button 
-                                 onClick={() => {
-                                   setVisitedResults(p => new Set([...p, item.id]));
-                                   // In a real app we'd call a service to mark as viewed in DB
-                                   alert(`Report for ${item.test_name}: [NORMAL FINDINGS]`);
-                                 }} 
+                               <button
+                                 onClick={() => handleViewResult(item)}
+                                 disabled={previewLoading === item.id}
                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all
-                                   ${visitedResults.has(item.id) ? 'bg-slate-100 text-slate-400' : 'bg-primary-600 text-white shadow-lg shadow-primary-500/20'}`}>
-                                 {visitedResults.has(item.id) ? 'Viewed' : 'View Result'}
+                                   ${visitedResults.has(item.id)
+                                     ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                     : 'bg-primary-600 text-white shadow-lg shadow-primary-500/20 hover:bg-primary-700'}`}>
+                                 {previewLoading === item.id
+                                   ? 'Loading…'
+                                   : visitedResults.has(item.id) ? 'View Again' : 'View Result'}
                                </button>
                              )}
                           </div>
@@ -550,5 +583,14 @@ export default function NursingRounds() {
         )}
       </div>
     </div>
+
+    {/* Lab Report Preview Modal */}
+    {previewItem && (
+      <LabReportPreview
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
+      />
+    )}
+  </>
   );
 }

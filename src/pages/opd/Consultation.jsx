@@ -248,7 +248,10 @@ export default function Consultation() {
   const [submittingFinal,  setSubmittingFinal]  = useState(false);
 
   useEffect(() => {
-    if (!visit.visit_id) return;
+    if (!visit.visit_id) {
+      setLoadingDraft(false);
+      return;
+    }
     async function loadData() {
       try {
         const draft = await consultationService.getByVisit(visit.visit_id);
@@ -361,8 +364,6 @@ export default function Consultation() {
     if (!labTests.length && !imagingOrders.length) {
        notify.warn("No tests selected!"); return;
     }
-    const yes = window.confirm("Request tests & pause this consultation?");
-    if (!yes) return;
     setSubmittingTest(true);
     try {
       // 1. Save drafted notes
@@ -402,8 +403,6 @@ export default function Consultation() {
       return;
     }
 
-    const yes = window.confirm("Finalise this consultation? Modifications will be locked.");
-    if (!yes) return;
     setSubmittingFinal(true);
     try {
       // Save draft (which acts as final state locally)
@@ -462,6 +461,16 @@ export default function Consultation() {
   const priorityColor = { emergency: 'bg-red-100 text-red-700 border-red-200', urgent: 'bg-amber-100 text-amber-700 border-amber-200', normal: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
 
   if (loadingDraft) return <div className="p-8 text-center text-slate-500 font-bold animate-pulse">Loading consultation details...</div>;
+
+  if (!visit.visit_id) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+        <h2 className="text-xl font-bold text-slate-700">No Patient Selected</h2>
+        <p className="text-slate-500">Please select a patient from the OPD Queue to start a consultation.</p>
+        <button className="btn-primary mt-2" onClick={() => navigate('/opd/queue')}>Go to Queue</button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">

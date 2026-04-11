@@ -1,11 +1,14 @@
-import React, { useRef } from 'react';
+﻿import React, { useRef } from 'react';
 import { Close, Print, Download } from '@mui/icons-material';
 import { TEST_TEMPLATES, computeFlag, refInterval } from '../../utils/labConstants';
-import { useAuth } from '../../context/AuthContext';
 
 export default function LabReportPreview({ item, onClose }) {
-  const { user } = useAuth();
   const printRef = useRef();
+
+  // Lab technician who validated the result (not the viewing doctor)
+  const labTech = item?.validated_by_user
+    ? `${item.validated_by_user.first_name} ${item.validated_by_user.last_name}`.trim()
+    : null;
 
   const patient = item?.lab_orders?.patients;
   let parsedResult = {};
@@ -96,7 +99,7 @@ export default function LabReportPreview({ item, onClose }) {
         <div className="flex justify-between items-center p-3 sm:p-4 border-b border-emerald-200 bg-emerald-50 shrink-0">
           <div>
             <h3 className="font-black text-lg text-emerald-800">Preview Results</h3>
-            <p className="text-xs font-bold text-emerald-600">{patient?.first_name} {patient?.last_name} · {item?.test_name}</p>
+            <p className="text-xs font-bold text-emerald-600">{patient?.first_name} {patient?.last_name} Â· {item?.test_name}</p>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={handlePrint} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all active:scale-95">
@@ -211,8 +214,8 @@ export default function LabReportPreview({ item, onClose }) {
                         return (
                           <tr key={idx} className="border-b border-slate-200">
                             <td className={`py-2 pl-2 ${isAbn ? 'font-bold' : ''}`}>{row.name}</td>
-                            <td className={`py-2 ${isAbn ? 'font-bold text-red-600' : ''}`}>{val || '—'}</td>
-                            <td className={`py-2 text-slate-600 ${isAbn ? 'font-bold' : ''}`}>{row.unit || '—'}</td>
+                            <td className={`py-2 ${isAbn ? 'font-bold text-red-600' : ''}`}>{val || 'â€”'}</td>
+                            <td className={`py-2 text-slate-600 ${isAbn ? 'font-bold' : ''}`}>{row.unit || 'â€”'}</td>
                             <td className="py-2">
                               {flag && (
                                 <span className={`font-mono ${flag === 'H' || flag === 'L' ? 'font-black' : 'font-normal text-slate-500'}`}>
@@ -249,10 +252,10 @@ export default function LabReportPreview({ item, onClose }) {
                <div className="flex justify-between items-end mb-8 relative">
                   <div className="text-[12px] flex flex-col items-center">
                      <p className="font-bold border-t border-slate-400 pt-1 px-4 text-center">Test Performed & Validated By</p>
-                     <p className="font-semibold text-slate-800 uppercase mt-1">{user?.email?.split('@')[0] || user?.name || 'Lab Technologist'}</p>
+                     <p className="font-semibold text-slate-800 uppercase mt-1">{labTech || 'Lab Technologist'}</p>
                      {/* Mock signature */}
                      <div className="mt-1 text-2xl font-signature text-[#055b38]/60" style={{ fontFamily: 'cursive' }}>
-                        {user?.email?.split('@')[0] || user?.name || 'Sign'}
+                        {labTech?.split(' ')[0] || 'Sign'}
                      </div>
                   </div>
                   
@@ -281,3 +284,5 @@ export default function LabReportPreview({ item, onClose }) {
     </div>
   );
 }
+
+

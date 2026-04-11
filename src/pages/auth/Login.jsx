@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { LocalHospital, Visibility, VisibilityOff } from '@mui/icons-material';
+import hospital from '../../config/hospital';
+
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -38,12 +40,12 @@ export default function Login() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <LocalHospital className="text-white" sx={{ fontSize: 28 }} />
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center overflow-hidden shadow-sm">
+              <img src="/logo.png" alt="Biopassion Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-widest text-blue-200 uppercase">Biopassion</p>
-              <p className="text-lg font-black leading-none">Diagnostics</p>
+              <p className="text-xs font-semibold tracking-widest text-blue-200 uppercase">{hospital.name}</p>
+              <p className="text-lg font-black leading-none">{hospital.tagline}</p>
             </div>
           </div>
 
@@ -60,12 +62,12 @@ export default function Login() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2 mb-8 justify-center">
-            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
-              <LocalHospital className="text-white" sx={{ fontSize: 22 }} />
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow border border-slate-100 overflow-hidden">
+              <img src="/logo.png" alt="Biopassion Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <p className="text-xs font-bold text-primary-600 tracking-widest uppercase">Biopassion</p>
-              <p className="text-sm font-black text-slate-800">Hospital Management System</p>
+              <p className="text-xs font-bold text-primary-600 tracking-widest uppercase">{hospital.name}</p>
+              <p className="text-sm font-black text-slate-800">{hospital.tagline}</p>
             </div>
           </div>
 
@@ -123,9 +125,9 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-slate-400 mt-8">
-            © 2026 Biopassion Diagnostics Ltd. · Level 4 HMS v1.0
-          </p>
+            <p className="text-center text-xs text-slate-400 mt-8">
+              {hospital.copyright}
+            </p>
         </div>
       </div>
     </div>

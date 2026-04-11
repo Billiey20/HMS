@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
+import hospital from '../config/hospital';
+
 import { 
   LocalHospital, Dashboard, PersonAdd, Assignment, 
   Hotel, MedicalServices, Science, LocalPharmacy, 
@@ -25,6 +27,7 @@ const NAV = [
     group: 'ADMIN',
     items: [
       { to: '/admin/prices',  label: 'Price List',     icon: PriceCheck,          section: 'prices' },
+      { to: '/admin/claims',  label: 'SHA Claims',     icon: ReceiptLong,         section: 'claims' },
     ],
   },
   {
@@ -117,16 +120,16 @@ export default function Layout() {
   const displayName = profile ? `${profile.first_name} ${profile.last_name}` : user?.email;
 
   const roleBadge = {
-    admin:     { label: 'Administrator',  cls: 'bg-blue-100 text-blue-700'    },
-    doctor:    { label: 'Clinician',      cls: 'bg-green-100 text-green-700'  },
-    nurse:     { label: 'Nurse',          cls: 'bg-green-100 text-green-700'  },
-    reception: { label: 'Reception',      cls: 'bg-slate-100 text-slate-700'  },
-    pharmacy:  { label: 'Pharmacist',     cls: 'bg-amber-100 text-amber-700'  },
-    lab_staff: { label: 'Lab Technician', cls: 'bg-blue-100 text-blue-700'    },
-    billing:   { label: 'Billing',        cls: 'bg-amber-100 text-amber-700'  },
-    hr:        { label: 'HR',             cls: 'bg-violet-100 text-violet-700' },
-    triage:    { label: 'Triage',         cls: 'bg-emerald-100 text-emerald-700' },
-  }[role] || { label: role || 'Staff', cls: 'bg-slate-100 text-slate-700' };
+    admin:     { label: 'Administrator',  dept: 'System Admin',      icon: '🛡️', bar: 'bg-blue-500',    txt: 'text-blue-700',    bg: 'bg-blue-50'    },
+    doctor:    { label: 'Clinician',      dept: 'OPD / Consultation', icon: '🩺', bar: 'bg-emerald-500', txt: 'text-emerald-700', bg: 'bg-emerald-50' },
+    nurse:     { label: 'Nurse',          dept: 'Clinical Ward',      icon: '💊', bar: 'bg-emerald-500', txt: 'text-emerald-700', bg: 'bg-emerald-50' },
+    reception: { label: 'Reception',      dept: 'Front Desk',         icon: '🏥', bar: 'bg-primary-500', txt: 'text-primary-700', bg: 'bg-primary-50' },
+    pharmacy:  { label: 'Pharmacist',     dept: 'Pharmacy',           icon: '💊', bar: 'bg-amber-500',   txt: 'text-amber-700',   bg: 'bg-amber-50'   },
+    lab_staff: { label: 'Lab Technician', dept: 'Laboratory',         icon: '🔬', bar: 'bg-blue-500',    txt: 'text-blue-700',    bg: 'bg-blue-50'    },
+    billing:   { label: 'Billing',        dept: 'Finance',            icon: '💳', bar: 'bg-amber-500',   txt: 'text-amber-700',   bg: 'bg-amber-50'   },
+    hr:        { label: 'HR Officer',     dept: 'Human Resources',    icon: '👥', bar: 'bg-violet-500',  txt: 'text-violet-700',  bg: 'bg-violet-50'  },
+    triage:    { label: 'Triage Nurse',   dept: 'Triage & Vitals',    icon: '❤️‍🩹', bar: 'bg-rose-500',    txt: 'text-rose-700',    bg: 'bg-rose-50'    },
+  }[role] || { label: role || 'Staff', dept: 'General', icon: '👤', bar: 'bg-slate-400', txt: 'text-slate-700', bg: 'bg-slate-50' };
 
   // Filter nav: only show groups that have at least one accessible item
   const visibleNav = NAV
@@ -142,12 +145,12 @@ export default function Layout() {
       <div className="flex items-center justify-between px-5 py-5 border-b border-slate-100 min-h-[72px]">
         {isSidebarExpanded && (
           <div className="flex items-center gap-3 animate-in fade-in duration-300">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shrink-0">
-              <LocalHospital className="text-white" sx={{ fontSize: 18 }} />
+            <div className="w-8 h-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+              <img src="/logo.png" alt="Biopassion Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-               <p className="text-[9px] font-black text-primary-600 tracking-widest uppercase leading-none">Biopassion HMS</p>
-               <p className="text-xs font-black text-slate-800 leading-tight">Level 4 Hospital</p>
+               <p className="text-[9px] font-black text-primary-600 tracking-widest uppercase leading-none">{hospital.name}</p>
+               <p className="text-xs font-black text-slate-800 leading-tight">{hospital.tagline}</p>
             </div>
           </div>
         )}
@@ -155,39 +158,45 @@ export default function Layout() {
         {!isSidebarExpanded && <div className="h-2" />}
       </div>
 
-      {/* Role badge */}
+
+      {/* Department Card */}
       {isSidebarExpanded && (
-        <div className="px-5 py-3 border-b border-slate-100 animate-in fade-in duration-300">
-          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${roleBadge.cls}`}>
-            {roleBadge.label}
-          </span>
+        <div className={`mx-3 my-3 rounded-xl overflow-hidden border border-slate-100 ${roleBadge.bg} animate-in fade-in duration-300`}>
+          <div className={`h-1 w-full ${roleBadge.bar}`} />
+          <div className="px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg leading-none">{roleBadge.icon}</span>
+              <div className="min-w-0">
+                <p className={`text-[11px] font-black uppercase tracking-widest leading-none ${roleBadge.txt}`}>{roleBadge.label}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Collapsed: show accent dot only */}
+      {!isSidebarExpanded && (
+        <div className="flex justify-center py-2">
+          <span className={`w-2 h-2 rounded-full ${roleBadge.bar}`} />
         </div>
       )}
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto scrollbar-hide">
-        {visibleNav.map(({ group, items }) => (
-          <div key={group} className="space-y-1">
-            {isSidebarExpanded && <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2">{group}</p>}
-            <div className="space-y-1">
-              {items.map(item => (
-                <NavLink key={item.to} to={item.to} end={item.exact}
-                  className={({ isActive }) => 
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
-                    ${isActive ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`
-                  }
-                >
-                  <item.icon sx={{ fontSize: 20 }} className={isSidebarExpanded ? '' : 'mx-auto'} />
-                  {isSidebarExpanded && <span className="text-sm font-bold truncate">{item.label}</span>}
-                  {!isSidebarExpanded && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
-                      {item.label}
-                    </div>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          </div>
+      {/* Nav — flat list, no group headers */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
+        {visibleNav.flatMap(({ items }) => items).map(item => (
+          <NavLink key={item.to} to={item.to} end={item.exact}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
+              ${isActive ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`
+            }
+          >
+            <item.icon sx={{ fontSize: 20 }} className={isSidebarExpanded ? '' : 'mx-auto'} />
+            {isSidebarExpanded && <span className="text-sm font-bold truncate">{item.label}</span>}
+            {!isSidebarExpanded && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
+                {item.label}
+              </div>
+            )}
+          </NavLink>
         ))}
       </nav>
 
@@ -199,8 +208,8 @@ export default function Layout() {
           </div>
           {isSidebarExpanded && (
             <div className="flex-1 min-w-0 animate-in fade-in duration-300">
-              <p className="text-[11px] font-black text-slate-800 truncate">{profile?.first_name || 'User'}</p>
-              <p className="text-[10px] text-slate-500 truncate">{roleBadge.label}</p>
+              <p className="text-[11px] font-black text-slate-800 truncate">{profile?.first_name} {profile?.last_name || ''}</p>
+              <p className={`text-[10px] font-bold truncate ${roleBadge.txt}`}>{roleBadge.label}</p>
             </div>
           )}
           {isSidebarExpanded && (
@@ -254,11 +263,11 @@ export default function Layout() {
            <div className="absolute top-0 left-0 right-0 h-16 bg-white border-b border-slate-100 z-50 flex items-center justify-between px-6 shadow-sm">
              <div className="flex items-center gap-4">
                <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <LocalHospital className="text-white" sx={{ fontSize: 20 }} />
+                 <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+                    <img src="/logo.png" alt="Biopassion Logo" className="w-full h-full object-cover" />
                  </div>
                  <div className="flex flex-col">
-                   <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest leading-none">Biopassion HMS</p>
+                  <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest leading-none">{hospital.name}</p>
                    <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
                      {location.pathname === '/pharmacy' ? 'Pharmacy' : 'Laboratory'}
                    </p>
@@ -297,10 +306,10 @@ export default function Layout() {
 
         {!showSidebar && !isLegacyModule && (
            <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
-             <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
-                <LocalHospital className="text-white" sx={{ fontSize: 20 }} />
+             <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+                <img src="/logo.png" alt="Biopassion Logo" className="w-full h-full object-cover" />
              </div>
-             <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Biopassion HMS</p>
+             <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{hospital.name}</p>
            </div>
         )}
 

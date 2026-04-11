@@ -17,7 +17,8 @@ function DispenseModal({ rx, stockMap, onClose, onDispense }) {
 
   const update = (id, val) => setItems(prev => prev.map(i => i.id === id ? { ...i, toDispense: parseInt(val) || 0 } : i));
 
-  const inStock = (drugId) => (stockMap[drugId] || 0);
+  const inStock = (drugId) => (stockMap[drugId]?.current || 0);
+  const expiredStock = (drugId) => (stockMap[drugId]?.expired || 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -64,7 +65,13 @@ function DispenseModal({ rx, stockMap, onClose, onDispense }) {
                 {insufficient && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600 font-semibold">
                     <Warning sx={{ fontSize: 13 }} />
-                    Insufficient stock — only {stock} available.
+                    Insufficient clean stock — only {stock} available.
+                  </div>
+                )}
+                {item.drug_id && expiredStock(item.drug_id) > 0 && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600 font-semibold bg-amber-50 rounded-lg p-2 border border-amber-200">
+                    <Warning sx={{ fontSize: 13 }} />
+                    Note: There are {expiredStock(item.drug_id)} EXPIRED units of this drug which have been quarantined and removed from dispensable stock.
                   </div>
                 )}
                 <div className="mt-2 text-xs text-slate-500">
@@ -89,6 +96,8 @@ function DispenseModal({ rx, stockMap, onClose, onDispense }) {
 function ReceiveStockModal({ drugs, onClose, onSave }) {
   const [form, setForm] = useState({ drugId: '', qty: '', batchNo: '', expiry: '', cost: '' });
   const f = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
+
+  const canSave = form.drugId && form.qty && form.batchNo && form.expiry;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -117,18 +126,23 @@ function ReceiveStockModal({ drugs, onClose, onSave }) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Batch / Lot No.</label>
-              <input className="input" value={form.batchNo} onChange={f('batchNo')} placeholder="e.g. B-992" />
+              <label className="label">Batch / Lot No. *</label>
+              <input className={`input ${!form.batchNo ? 'border-amber-300 bg-amber-50' : ''}`} value={form.batchNo} onChange={f('batchNo')} placeholder="e.g. B-992" />
             </div>
             <div>
-              <label className="label">Expiry Date</label>
-              <input type="date" className="input" value={form.expiry} onChange={f('expiry')} />
+              <label className="label">Expiry Date *</label>
+              <input type="date" className={`input ${!form.expiry ? 'border-amber-300 bg-amber-50' : ''}`} value={form.expiry} onChange={f('expiry')} />
             </div>
           </div>
+          {(!form.batchNo || !form.expiry) && (
+            <p className="text-[10px] font-bold text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-200">
+              ⚠️ Strict compliance: Batch numbers and Expiry dates are mandatory for all medications.
+            </p>
+          )}
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
           <button onClick={onClose} className="btn-secondary" disabled={drugs.loading}>Cancel</button>
-          <button onClick={() => onSave(form)} disabled={!form.drugId || !form.qty || drugs.loading} className="btn-primary min-w-[140px]">
+          <button onClick={() => onSave(form)} disabled={!canSave || drugs.loading} className="btn-primary min-w-[140px]">
             {drugs.loading ? <LoadingDots /> : <><Add sx={{ fontSize: 16 }} /> Receive Stock</>}
           </button>
         </div>
@@ -220,7 +234,7 @@ export default function Pharmacy() {
     }
   };
 
-  const stockMap = Object.fromEntries(drugStock.map(d => [d.id, d.current_qty]));
+  const stockMap = Object.fromEntries(drugStock.map(d => [d.id, { current: d.current_qty, expired: d.expired_qty }]));
 
   const handleDispense = async (rxId, items) => {
     setSubmitting(true);

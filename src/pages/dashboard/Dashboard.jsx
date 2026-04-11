@@ -57,7 +57,13 @@ export default function Dashboard() {
     { label: 'OPD (Today)',       value: data.kpis.todayOpd ?? '—',     sub: 'Visits',        icon: MedicalServices,color: 'bg-blue-50 border-blue-100 text-blue-700' },
     { label: 'Inpatients',        value: data.kpis.inpatients ?? '—',   sub: 'Admitted',      icon: Hotel,          color: 'bg-violet-50 border-violet-100 text-violet-700' },
     { label: 'Pending Lab',       value: data.kpis.pendingLab ?? '—',   sub: 'Tests queue',   icon: Science,        color: 'bg-amber-50 border-amber-100 text-amber-700' },
-    { label: 'Today Revenue',     value: data.kpis.revenue ? `KES ${data.kpis.revenue.toLocaleString()}` : '—', sub: 'Collected', icon: ReceiptLong,     color: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+    { 
+      label: 'Today Revenue',     
+      value: data.kpis.revenue ? `KES ${(data.kpis.revenue/1000).toFixed(1)}k` : '—', 
+      sub: data.kpis.revenue ? `Cash: ${(data.kpis.revenueCash/1000).toFixed(1)}k | SHA: ${(data.kpis.revenueInsurance/1000).toFixed(1)}k` : 'Collected', 
+      icon: ReceiptLong,     
+      color: 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+    },
   ];
 
   if (loading) {

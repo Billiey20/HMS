@@ -19,11 +19,30 @@ export const pharmacyService = {
       .order('name');
     if (error) throw error;
     
-    // Flatten stock out
-    return data.map(d => ({
-      ...d,
-      current_qty: d.current_stock || d.drug_stock?.reduce((acc, rs) => acc + (rs.quantity||0), 0) || 0,
-    }));
+    // Flatten stock out and separate expired inventory
+    return data.map(d => {
+      let current = 0;
+      let expired = 0;
+      const today = new Date().toISOString().slice(0, 10);
+
+      (d.drug_stock || []).forEach(rs => {
+        if (rs.expiry_date && rs.expiry_date < today) {
+          expired += (rs.quantity || 0);
+        } else {
+          current += (rs.quantity || 0);
+        }
+      });
+      // Fallback to current_stock catalog field if drug_stock table isn't populated
+      if (!d.drug_stock || d.drug_stock.length === 0) {
+          current = d.current_stock || 0;
+      }
+
+      return {
+        ...d,
+        current_qty: current,
+        expired_qty: expired,
+      };
+    });
   },
 
   async createDrug(payload) {

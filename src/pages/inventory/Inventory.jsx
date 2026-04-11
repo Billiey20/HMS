@@ -77,6 +77,10 @@ function ReceiveStockModal({ items, onClose, onSave }) {
   });
   const f = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
 
+  const selectedItem = items.find(i => i.id === form.itemId);
+  const requireBatch = selectedItem && !['Stationery & Packaging', 'Other'].includes(selectedItem.category);
+  const canSave = form.itemId && form.qty && (!requireBatch || (form.batchNo && form.expiry));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200">
@@ -108,18 +112,23 @@ function ReceiveStockModal({ items, onClose, onSave }) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Batch / Lot No.</label>
-              <input className="input" value={form.batchNo} onChange={f('batchNo')} placeholder="e.g. BT-2024-01" />
+              <label className="label">Batch / Lot No. {requireBatch && '*'}</label>
+              <input className={`input ${requireBatch && !form.batchNo ? 'border-amber-300 bg-amber-50' : ''}`} value={form.batchNo} onChange={f('batchNo')} placeholder="e.g. BT-2024-01" />
             </div>
             <div>
-              <label className="label">Expiry Date</label>
-              <input type="date" className="input" value={form.expiry} onChange={f('expiry')} />
+              <label className="label">Expiry Date {requireBatch && '*'}</label>
+              <input type="date" className={`input ${requireBatch && !form.expiry ? 'border-amber-300 bg-amber-50' : ''}`} value={form.expiry} onChange={f('expiry')} />
             </div>
           </div>
+          {requireBatch && (!form.batchNo || !form.expiry) && (
+            <p className="text-[10px] font-bold text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-200">
+              ⚠️ Medical supplies require strict Batch and Expiry tracking.
+            </p>
+          )}
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={() => { onSave(form); onClose(); }} disabled={!form.itemId || !form.qty} className="btn-primary">
+          <button onClick={() => { onSave(form); onClose(); }} disabled={!canSave} className="btn-primary">
             <Add sx={{ fontSize: 16 }} /> Receive Stock
           </button>
         </div>

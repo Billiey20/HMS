@@ -4,22 +4,51 @@ import { PermissionsProvider } from './PermissionsContext';
 
 const AuthContext = createContext(null);
 
+const CACHE_KEY = 'hms_auth_cache';
+
+function readCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
+  catch { return null; }
+}
+
+function writeCache(data) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); }
+  catch {}
+}
+
+function clearCache() {
+  localStorage.removeItem(CACHE_KEY);
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
-  const [role, setRole]       = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cached = readCache();
+
+  // Initialise from cache immediately — no loading flash for returning users
+  const [user,    setUser]    = useState(cached?.user    || null);
+  const [role,    setRole]    = useState(cached?.role    || null);
+  const [profile, setProfile] = useState(cached?.profile || null);
+
+  // Only show the full-screen loader when there is truly no cached session
+  const [loading, setLoading] = useState(!cached);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) loadUserData(session.user);
-      else setLoading(false);
+      if (session?.user) {
+        loadUserData(session.user);
+      } else {
+        // No active session — clear everything
+        setUser(null); setRole(null); setProfile(null);
+        clearCache();
+        setLoading(false);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) loadUserData(session.user);
-      else {
+      if (session?.user) {
+        loadUserData(session.user);
+      } else {
         setUser(null); setRole(null); setProfile(null);
+        clearCache();
         setLoading(false);
       }
     });
@@ -28,22 +57,30 @@ export function AuthProvider({ children }) {
   }, []);
 
   const loadUserData = async (authUser) => {
-    // Only set loading if it's a new or different user to avoid unmounting the app on token refresh
-    if (!user || user.id !== authUser.id) {
-      setLoading(true);
-    }
-    setUser(authUser);
-    try {
-      const { data: prof } = await supabase
-        .from('users').select('*').eq('id', authUser.id).single();
-      setProfile(prof);
+    // Silently update if we already have a cached session for this user
+    const isNewUser = !user || user.id !== authUser.id;
+    if (isNewUser) setLoading(true);
 
-      const { data: roleData } = await supabase
-        .from('user_roles').select('roles(name)').eq('user_id', authUser.id).single();
-      setRole(roleData?.roles?.name || null);
+    setUser(authUser);
+
+    try {
+      // Run both DB queries in parallel instead of sequentially
+      const [profRes, roleRes] = await Promise.all([
+        supabase.from('users').select('*').eq('id', authUser.id).single(),
+        supabase.from('user_roles').select('roles(name)').eq('user_id', authUser.id).single(),
+      ]);
+      const prof     = profRes.data  || null;
+      const roleName = roleRes.data?.roles?.name || null;
+
+      setProfile(prof);
+      setRole(roleName);
+
+      // Persist to cache so next page load is instant
+      writeCache({ user: authUser, profile: prof, role: roleName });
     } catch (e) {
       console.error('Failed to load user data', e);
     }
+
     setLoading(false);
   };
 
@@ -53,11 +90,13 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const signOut = async () => { await supabase.auth.signOut(); };
+  const signOut = async () => {
+    clearCache();
+    await supabase.auth.signOut();
+  };
 
   return (
     <AuthContext.Provider value={{ user, role, profile, loading, signIn, signOut }}>
-      {/* Wrap with PermissionsProvider so all children get access checks */}
       <PermissionsProvider role={role}>
         {children}
       </PermissionsProvider>

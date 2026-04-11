@@ -10,10 +10,19 @@ import billingRouter    from './billing.js';
 import hrRouter         from './hr.js';
 import reportsRouter    from './reports.js';
 import inventoryRouter  from './inventory.js';
+import shaRouter        from './sha.js';
+import mpesaRouter      from './mpesa.js';
 
 const router = Router();
 
-// All API routes require authentication
+// ── Public routes (no auth) ───────────────────────────────────────────────────
+// Safaricom callback must be reachable without a Bearer token
+router.post('/mpesa/callback', (req, res, next) => {
+  // Import and call directly to bypass authenticate middleware
+  import('../controllers/mpesa.js').then(m => m.handleCallback(req, res, next));
+});
+
+// ── All other API routes require authentication ───────────────────────────────
 router.use(authenticate);
 
 router.use('/patients',  patientsRouter);
@@ -25,5 +34,7 @@ router.use('/billing',   billingRouter);
 router.use('/hr',        hrRouter);
 router.use('/reports',   reportsRouter);
 router.use('/inventory', inventoryRouter);
+router.use('/sha',       shaRouter);
+router.use('/mpesa',     mpesaRouter);
 
 export default router;

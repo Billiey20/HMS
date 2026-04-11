@@ -4,7 +4,7 @@ import React, { createContext, useContext } from 'react';
 // Each entry is the set of route prefixes this role can access.
 export const ROLE_PERMISSIONS = {
   admin: [
-    'dashboard', 'admin', 'prices',
+    'dashboard', 'admin', 'prices', 'claims',
     'patients',
     'opd', 'triage', 'ipd', 'ward_map',
     'lab', 'pharmacy',

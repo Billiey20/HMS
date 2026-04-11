@@ -22,5 +22,9 @@ export { settingsService } from './settings.js';
 export { analyticsService } from './analytics.js';
 // ── Notifications ─────────────────────────────────────────────────────────────
 export { notificationService } from './notifications.js';
-
-
+// ── SHA / Client Registry / M-Pesa ────────────────────────────────────────────
+export { shaService } from './sha.js';
+// ── Audit ─────────────────────────────────────────────────────────────────────
+export { auditService } from './auditService.js';
+// ── Claims ────────────────────────────────────────────────────────────────────
+export { claimsService } from './claimsService.js';

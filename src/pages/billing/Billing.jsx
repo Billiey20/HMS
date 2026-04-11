@@ -94,9 +94,11 @@ function PaymentModal({ bill, onClose, onPay }) {
   const total = parseFloat(bill.total_amount || 0);
   const paid  = parseFloat(bill.paid_amount  || 0);
   const balance = total - paid;
-  const [method, setMethod]   = useState('Cash');
+  
+  const defaultMethod = (bill.patients?.payment_mode === 'SHA' || bill.patients?.payment_mode === 'PHC') ? 'Insurance' : 'Cash';
+  const [method, setMethod]   = useState(defaultMethod);
   const [amount, setAmount]   = useState(balance);
-  const [ref, setRef]         = useState('');
+  const [ref, setRef]         = useState(defaultMethod === 'Insurance' && bill.patients?.sha_number ? bill.patients.sha_number : '');
   const [saving, setSaving]   = useState(false);
 
   const handlePay = async () => {
@@ -126,7 +128,11 @@ function PaymentModal({ bill, onClose, onPay }) {
             <label className="label">Payment Method *</label>
             <div className="grid grid-cols-2 gap-2">
               {['Cash','M-Pesa','Card (POS)','Insurance','Waiver'].map(m => (
-                <button key={m} onClick={() => setMethod(m)}
+                <button key={m} onClick={() => {
+                  setMethod(m);
+                  if (m === 'Insurance' && bill.patients?.sha_number) setRef(bill.patients.sha_number);
+                  else if (m === 'Cash' || m === 'Waiver') setRef('');
+                }}
                   className={`py-2.5 px-3 rounded-xl border-2 text-sm font-bold transition-all
                     ${method === m ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600'}`}>
                   {m === 'M-Pesa' ? '📱 ' : m === 'Cash' ? '💵 ' : m === 'Card (POS)' ? '💳 ' : m === 'Insurance' ? '🏥 ' : '⬜ '}{m}
@@ -140,7 +146,14 @@ function PaymentModal({ bill, onClose, onPay }) {
           </div>
           {(method === 'M-Pesa' || method === 'Insurance' || method === 'Card (POS)') && (
             <div>
-              <label className="label">{method === 'M-Pesa' ? 'M-Pesa Code' : method === 'Insurance' ? 'Claim / Policy No.' : 'POS Reference'}</label>
+              <div className="flex justify-between items-end mb-1">
+                <label className="label mb-0">{method === 'M-Pesa' ? 'M-Pesa Code' : method === 'Insurance' ? 'Claim / Policy No.' : 'POS Reference'}</label>
+                {method === 'Insurance' && bill.patients?.sha_number && (
+                  <button type="button" onClick={() => setRef(bill.patients.sha_number)} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 transition-colors">
+                    Use SHA: {bill.patients.sha_number}
+                  </button>
+                )}
+              </div>
               <input className="input" value={ref} onChange={e => setRef(e.target.value)} placeholder="Reference number…" />
             </div>
           )}
