@@ -3,6 +3,7 @@ import {
   ReceiptLong, Search, Add, Print, Payments, Refresh
 } from '@mui/icons-material';
 import { billingService, patientService } from '../../services/api';
+import { shaService } from '../../services/index';
 import { useAuth } from '../../context/AuthContext';
 import OfficialReceiptModal from '../../components/modals/OfficialReceiptModal';
 
@@ -99,14 +100,67 @@ function PaymentModal({ bill, onClose, onPay }) {
   const [method, setMethod]   = useState(defaultMethod);
   const [amount, setAmount]   = useState(balance);
   const [ref, setRef]         = useState(defaultMethod === 'Insurance' && bill.patients?.sha_number ? bill.patients.sha_number : '');
+  const [phone, setPhone]     = useState(bill.patients?.phone || '');
   const [saving, setSaving]   = useState(false);
+  
+  // STK Push State
+  const [stkStatus, setStkStatus] = useState('idle'); // idle, sending, polling, success, error
+  const [checkoutId, setCheckoutId] = useState(null);
+  const [stkError, setStkError] = useState('');
 
-  const handlePay = async () => {
-    setSaving(true);
-    try { await onPay(bill.id, amount, method, ref); onClose(); }
-    catch (e) { alert('Payment failed: ' + e.message); }
-    finally { setSaving(false); }
+  useEffect(() => {
+    let interval;
+    if (stkStatus === 'polling' && checkoutId) {
+      interval = setInterval(async () => {
+        try {
+          const res = await shaService.pollSTKStatus(checkoutId);
+          if (res.status === 'success') {
+            setStkStatus('success');
+            setRef(res.mpesa_receipt || 'STK_SUCCESS');
+            clearInterval(interval);
+            // Auto complete payment
+            handleFinalPay(res.mpesa_receipt);
+          } else if (res.status === 'failed') {
+            setStkStatus('error');
+            setStkError(res.reason || 'Transaction failed or cancelled by user.');
+            clearInterval(interval);
+          }
+        } catch (err) {
+            // Ignore temporary fetch issues or 404s
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [stkStatus, checkoutId, amount, method]); // eslint-disable-line
+
+  const initiateSTK = async () => {
+    if (!phone || phone.length < 9) {
+      setStkError('Please enter a valid phone number.'); return;
+    }
+    setStkStatus('sending');
+    setStkError('');
+    try {
+      const res = await shaService.initiateSTKPush({ phone, amount, sha_number: bill.patients?.sha_number });
+      if (res.success) {
+        setCheckoutId(res.checkout_request_id);
+        setStkStatus('polling');
+      } else {
+        setStkStatus('error');
+        setStkError(res.message || 'Failed to initiate push.');
+      }
+    } catch (e) {
+      setStkStatus('error');
+      setStkError(e.message || 'Network error initiating STK Push. Is the backend .env configured?');
+    }
   };
+
+  const handleFinalPay = async (overrideRef) => {
+    setSaving(true);
+    try { await onPay(bill.id, amount, method, overrideRef || ref); onClose(); }
+    catch (e) { alert('Payment failed: ' + e.message); setSaving(false); }
+  };
+
+  const handleManualPay = () => handleFinalPay(ref);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
@@ -116,7 +170,7 @@ function PaymentModal({ bill, onClose, onPay }) {
             <h2 className="font-black text-white">Record Payment</h2>
             <p className="text-emerald-100 text-[10px] uppercase font-bold tracking-widest">{bill.bill_no} · {bill.patients?.first_name} {bill.patients?.last_name}</p>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold transition-colors">×</button>
+          <button onClick={onClose} disabled={stkStatus === 'polling'} className="text-white/70 hover:text-white text-2xl font-bold transition-colors disabled:opacity-50">×</button>
         </div>
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
@@ -124,30 +178,78 @@ function PaymentModal({ bill, onClose, onPay }) {
             <div className="flex justify-between text-sm"><span className="text-slate-600">Already Paid</span><span className="font-bold text-slate-700"><span className="text-[10px] mr-1">KSh.</span> {paid.toLocaleString()}</span></div>
             <div className="flex justify-between text-sm border-t border-emerald-200 pt-1"><span className="font-bold text-emerald-800">Balance Due</span><span className="font-black text-emerald-800"><span className="text-[10px] mr-1">KSh.</span> {balance.toLocaleString()}</span></div>
           </div>
+          
           <div>
             <label className="label">Payment Method *</label>
             <div className="grid grid-cols-2 gap-2">
               {['Cash','M-Pesa','Card (POS)','Insurance','Waiver'].map(m => (
-                <button key={m} onClick={() => {
+                <button key={m} disabled={stkStatus === 'polling' || stkStatus === 'sending'} onClick={() => {
                   setMethod(m);
                   if (m === 'Insurance' && bill.patients?.sha_number) setRef(bill.patients.sha_number);
-                  else if (m === 'Cash' || m === 'Waiver') setRef('');
+                  else if (m === 'Cash' || m === 'Waiver' || m === 'M-Pesa') setRef('');
+                  setStkStatus('idle'); setStkError('');
                 }}
-                  className={`py-2.5 px-3 rounded-xl border-2 text-sm font-bold transition-all
+                  className={`py-2.5 px-3 rounded-xl border-2 text-sm font-bold transition-all disabled:opacity-50
                     ${method === m ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600'}`}>
                   {m === 'M-Pesa' ? '📱 ' : m === 'Cash' ? '💵 ' : m === 'Card (POS)' ? '💳 ' : m === 'Insurance' ? '🏥 ' : '⬜ '}{m}
                 </button>
               ))}
             </div>
           </div>
+          
           <div>
             <label className="label">Amount Paid (KSh.) *</label>
-            <input type="number" className="input" value={amount} onChange={e => setAmount(parseFloat(e.target.value))} />
+            <input type="number" className="input" disabled={stkStatus === 'polling' || stkStatus === 'sending'} value={amount} onChange={e => setAmount(parseFloat(e.target.value))} />
           </div>
-          {(method === 'M-Pesa' || method === 'Insurance' || method === 'Card (POS)') && (
+
+          {method === 'M-Pesa' && (
+            <div className="p-4 border-2 border-emerald-100 bg-emerald-50/50 rounded-xl space-y-3">
+               <div>
+                  <label className="label text-emerald-800">Send STK Push (Automatic)</label>
+                  <div className="flex gap-2">
+                    <input className="input" placeholder="07xx xxx xxx" value={phone} onChange={e=>setPhone(e.target.value)} disabled={stkStatus==='polling' || stkStatus === 'sending'}/>
+                    <button onClick={initiateSTK} disabled={!phone || stkStatus === 'polling' || stkStatus === 'sending'} className="btn-primary shrink-0 bg-emerald-600 hover:bg-emerald-700">
+                      {stkStatus === 'sending' ? 'Sending...' : 'Send Prompt'}
+                    </button>
+                  </div>
+               </div>
+
+               {stkStatus === 'polling' && (
+                 <div className="flex flex-col items-center justify-center py-4 text-emerald-700 space-y-2">
+                   <div className="w-8 h-8 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
+                   <p className="text-sm font-bold font-mono text-center">Awaiting PIN entry on {phone}...<br/><span className="text-xs text-emerald-600/70">Do not close window</span></p>
+                 </div>
+               )}
+
+               {stkStatus === 'error' && (
+                 <div className="p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold font-mono">
+                    ⚠️ {stkError}
+                 </div>
+               )}
+
+               {stkStatus === 'success' && (
+                 <div className="p-3 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center justify-center">
+                    ✅ Payment Received Successfully! Auto-confirming...
+                 </div>
+               )}
+
+               <div className="relative flex py-2 items-center">
+                 <div className="flex-grow border-t border-emerald-200"></div>
+                 <span className="flex-shrink-0 mx-4 text-emerald-400 text-xs font-bold uppercase tracking-widest">OR</span>
+                 <div className="flex-grow border-t border-emerald-200"></div>
+               </div>
+
+               <div>
+                <label className="label mb-0 text-emerald-800">Manual M-Pesa Code Entry</label>
+                <input className="input" value={ref} onChange={e => setRef(e.target.value)} placeholder="Wait for auto-fill or enter manually..." disabled={stkStatus === 'polling' || stkStatus === 'sending'}/>
+               </div>
+            </div>
+          )}
+
+          {(method === 'Insurance' || method === 'Card (POS)') && (
             <div>
               <div className="flex justify-between items-end mb-1">
-                <label className="label mb-0">{method === 'M-Pesa' ? 'M-Pesa Code' : method === 'Insurance' ? 'Claim / Policy No.' : 'POS Reference'}</label>
+                <label className="label mb-0">{method === 'Insurance' ? 'Claim / Policy No.' : 'POS Reference'}</label>
                 {method === 'Insurance' && bill.patients?.sha_number && (
                   <button type="button" onClick={() => setRef(bill.patients.sha_number)} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 transition-colors">
                     Use SHA: {bill.patients.sha_number}
@@ -159,10 +261,10 @@ function PaymentModal({ bill, onClose, onPay }) {
           )}
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={handlePay} disabled={saving}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all">
-            <Payments sx={{ fontSize: 16 }} /> {saving ? 'Saving…' : 'Confirm Payment'}
+          <button onClick={onClose} disabled={stkStatus === 'polling' || saving} className="btn-secondary disabled:opacity-50">Cancel</button>
+          <button onClick={handleManualPay} disabled={saving || stkStatus === 'polling' || stkStatus === 'sending'}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all disabled:opacity-50">
+            <Payments sx={{ fontSize: 16 }} /> {saving ? 'Saving…' : 'Record Payment Manually'}
           </button>
         </div>
       </div>
