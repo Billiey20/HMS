@@ -25,22 +25,6 @@ function Field({ label, required, error, hint, children }) {
   );
 }
 
-function VerificationBadge({ type }) {
-  const config = {
-    sha_active: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'SHA Verified' },
-    sha_phc:    { bg: 'bg-teal-50 border-teal-200',     text: 'text-teal-700',   dot: 'bg-teal-500',   label: 'PHC Fund Active' },
-    sha_eccif:  { bg: 'bg-blue-50 border-blue-200',     text: 'text-blue-700',   dot: 'bg-blue-500',   label: 'SHA – ECCIF Emergency' },
-    cr_synced:  { bg: 'bg-blue-50 border-blue-200',     text: 'text-blue-700',   dot: 'bg-blue-500',   label: 'Private – Registry Synced' },
-    manual:     { bg: 'bg-amber-50 border-amber-200',   text: 'text-amber-700',  dot: 'bg-amber-400',  label: 'Pending Verification' },
-  };
-  const c = config[type] || config.manual;
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold ${c.bg} ${c.text}`}>
-      <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-      {c.label}
-    </span>
-  );
-}
 
 function StepIndicator({ step, steps }) {
   return (
@@ -48,14 +32,12 @@ function StepIndicator({ step, steps }) {
       {steps.map((label, i) => (
         <React.Fragment key={i}>
           <div className="flex items-center gap-2">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
-              i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-400'
-            }`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-400'
+              }`}>
               {i < step ? '✓' : i + 1}
             </div>
-            <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:block ${
-              i === step ? 'text-primary-700' : 'text-slate-400'
-            }`}>{label}</span>
+            <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:block ${i === step ? 'text-primary-700' : 'text-slate-400'
+              }`}>{label}</span>
           </div>
           {i < steps.length - 1 && <div className={`flex-1 h-px mx-2 ${i < step ? 'bg-emerald-300' : 'bg-slate-100'}`} />}
         </React.Fragment>
@@ -118,46 +100,33 @@ function FundingGateStep({ onSHA, onPrivate }) {
   return (
     <div className="p-8 space-y-8">
       <div>
-        <h3 className="text-base font-black text-slate-800 mb-1">How will this visit be funded?</h3>
-        <p className="text-xs text-slate-500">Select the patient's primary payment scheme to begin.</p>
+        <h3 className="text-base font-black text-slate-800 mb-1">Select the Payment scheme</h3>
       </div>
 
-      {/* Funding Type Cards */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Funding Type — single inline row */}
+      <div className="flex items-center gap-1">
         <button
           onClick={() => setMode(mode === 'SHA' ? null : 'SHA')}
-          className={`relative p-5 rounded-2xl border-2 text-left transition-all hover:shadow-md ${
-            mode === 'SHA'
-              ? 'border-primary-600 bg-primary-50 shadow-primary-100 shadow-lg'
-              : 'border-slate-200 hover:border-primary-300'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-bold text-sm
+            ${mode === 'SHA'
+              ? 'bg-primary-50 text-primary-700 ring-2 ring-primary-500/30'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'}`}
         >
-          <HealthAndSafety className={`mb-3 ${mode === 'SHA' ? 'text-primary-600' : 'text-slate-300'}`} sx={{ fontSize: 36 }} />
-          <p className="font-black text-slate-800 text-sm">SHA Member</p>
-          <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">Patient has a Social Health Authority (SHA) number. Verify eligibility instantly.</p>
-          {mode === 'SHA' && (
-            <span className="absolute top-3 right-3 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
-              <span className="text-white text-[8px] font-black">✓</span>
-            </span>
-          )}
+          <HealthAndSafety sx={{ fontSize: 20 }} />
+          SHA Member
         </button>
+
+        <span className="w-px h-5 bg-slate-200 mx-1" />
 
         <button
           onClick={() => setMode(mode === 'Private' ? null : 'Private')}
-          className={`relative p-5 rounded-2xl border-2 text-left transition-all hover:shadow-md ${
-            mode === 'Private'
-              ? 'border-amber-500 bg-amber-50 shadow-amber-100 shadow-lg'
-              : 'border-slate-200 hover:border-amber-300'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-bold text-sm
+            ${mode === 'Private'
+              ? 'bg-amber-50 text-amber-700 ring-2 ring-amber-400/30'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50'}`}
         >
-          <CreditCard className={`mb-3 ${mode === 'Private' ? 'text-amber-600' : 'text-slate-300'}`} sx={{ fontSize: 36 }} />
-          <p className="font-black text-slate-800 text-sm">Private / Cash Pay</p>
-          <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">Patient is self-funding. We'll still search the national registry for existing records.</p>
-          {mode === 'Private' && (
-            <span className="absolute top-3 right-3 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-[8px] font-black">✓</span>
-            </span>
-          )}
+          <CreditCard sx={{ fontSize: 20 }} />
+          Private / Cash Pay
         </button>
       </div>
 
@@ -175,7 +144,7 @@ function FundingGateStep({ onSHA, onPrivate }) {
             </Field>
             <div className="col-span-2">
               <Field label={idType === 'National ID' ? 'National ID Number' : idType === 'Birth Certificate' ? 'Birth Certificate No.' : 'Passport / ID Number'}
-                     required={mode === 'SHA'} error={error}>
+                required={mode === 'SHA'} error={error}>
                 <input
                   className="input"
                   value={idNumber}
@@ -187,55 +156,53 @@ function FundingGateStep({ onSHA, onPrivate }) {
             </div>
           </div>
 
-          {mode === 'SHA' && (
-            <Field label="Visit Type">
-              <select className="input" value={visitType} onChange={e => setVisitType(e.target.value)}>
-                <option>Walk-In</option>
-                <option>Emergency</option>
-                <option>Follow-Up</option>
-                <option>Referred</option>
-                <option>Scheduled</option>
-              </select>
-            </Field>
-          )}
+          <Field label="Visit Type">
+            <select className="input" value={visitType} onChange={e => setVisitType(e.target.value)}>
+              <option>Walk-In</option>
+              <option>Emergency</option>
+              <option>Follow-Up</option>
+              <option>Referred</option>
+              <option>Scheduled</option>
+            </select>
+          </Field>
 
-          {mode === 'SHA' ? (
-            <button
-              onClick={handleSHAVerify}
-              disabled={verifying}
-              className="btn-primary w-full flex items-center justify-center gap-2 h-12 text-sm"
-            >
-              {verifying ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Contacting SHA…
-                </>
-              ) : (
-                <>
-                  <VerifiedUser sx={{ fontSize: 18 }} />
-                  Fetch Identity &amp; Verify Eligibility
-                </>
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={handlePrivate}
-              disabled={verifying}
-              className="w-full flex items-center justify-center gap-2 h-12 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all disabled:opacity-60"
-            >
-              {verifying ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Searching Registry…
-                </>
-              ) : (
-                <>
-                  <Search sx={{ fontSize: 18 }} />
-                  {idNumber.trim() ? 'Search Registry & Continue' : 'Continue Without ID Lookup'}
-                </>
-              )}
-            </button>
-          )}
+          <div className="flex justify-end pt-2">
+            {mode === 'SHA' ? (
+              <button
+                onClick={handleSHAVerify}
+                disabled={verifying}
+                className="btn-primary w-fit px-8 flex items-center justify-center gap-2 h-11 text-sm shadow-lg shadow-primary-200"
+              >
+                {verifying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Contacting SHA…
+                  </>
+                ) : (
+                  <>
+                    Check Eligibility
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={handlePrivate}
+                disabled={verifying}
+                className="w-fit px-8 flex items-center justify-center gap-2 h-11 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all shadow-lg shadow-amber-200 disabled:opacity-60"
+              >
+                {verifying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Searching …
+                  </>
+                ) : (
+                  <>
+                    {idNumber.trim() ? 'Search Patient' : 'Search Client Registry'}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -281,7 +248,7 @@ function SHAResultPanel({ result, idNumber, visitType, onContinue, onSwitchPriva
             setStkStatus('failed');
             notify.error('Payment failed or was cancelled. Try again.');
           }
-        } catch {}
+        } catch { }
       }, 3000);
 
       // Stop polling after 3 minutes
@@ -299,14 +266,12 @@ function SHAResultPanel({ result, idNumber, visitType, onContinue, onSwitchPriva
       bg: 'bg-emerald-50 border-emerald-200',
       icon: <CheckCircle className="text-emerald-600" sx={{ fontSize: 28 }} />,
       title: 'SHA Verified — Active Member',
-      subtitle: `SHIF coverage is active. Registration will be pre-filled with government data.`,
       badge: 'sha_active',
     },
     sha_phc: {
       bg: 'bg-teal-50 border-teal-200',
       icon: <HealthAndSafety className="text-teal-600" sx={{ fontSize: 28 }} />,
-      title: 'PHC Fund Active (Level 2/3 Facility)',
-      subtitle: `Member status is inactive for SHIF, but your Level ${facility_level} facility is covered by the Primary Healthcare Fund. Care proceeds as SHA.`,
+      title: 'Member inactive for SHIF, PHC Active',
       badge: 'sha_phc',
     },
     sha_eccif: {
@@ -346,36 +311,35 @@ function SHAResultPanel({ result, idNumber, visitType, onContinue, onSwitchPriva
   return (
     <div className="p-8 space-y-6">
       {/* Result Banner */}
-      <div className={`flex items-start gap-4 p-5 rounded-2xl border-2 ${cfg.bg}`}>
+      <div className={`flex items-center gap-4 py-3 px-4 rounded-xl border-2 ${cfg.bg}`}>
         {cfg.icon}
         <div className="flex-1 min-w-0">
           <p className="font-black text-slate-800 text-sm">{cfg.title}</p>
           <p className="text-xs text-slate-600 mt-1 leading-relaxed">{cfg.subtitle}</p>
           {possible_solution && (
-            <p className="text-xs text-amber-700 mt-2 font-semibold">💡 {possible_solution}</p>
+            <p className="text-xs text-amber-700 mt-2 font-semibold">{possible_solution}</p>
           )}
         </div>
-        <VerificationBadge type={cfg.badge} />
       </div>
 
       {/* Member Details Preview (for all SHA paths that returned data) */}
       {md && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Identity Confirmed by SHA</span>
+          <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            <span className="text-[10px] font-black text-slate-500 tracking-widest">Identity details</span>
             <Lock sx={{ fontSize: 14 }} className="text-slate-300" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-slate-100">
             {[
               { label: 'SHA No.', value: md.sha_number },
               { label: 'CR No.', value: md.cr_number },
-              { label: 'Full Name', value: `${md.first_name} ${md.middle_name || ''} ${md.last_name}`.trim() },
-              { label: 'Date of Birth', value: md.date_of_birth },
+              { label: 'Full name', value: `${md.first_name} ${md.middle_name || ''} ${md.last_name}`.trim() },
+              { label: 'D.O.B', value: md.date_of_birth },
               { label: 'Gender', value: md.gender },
               { label: 'Status', value: md.member_status },
             ].map(({ label, value }) => value ? (
               <div key={label} className="bg-white px-4 py-3">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+                <p className="text-[9px] font-black text-slate-400">{label}</p>
                 <p className="font-bold text-slate-800 text-sm mt-0.5">{value}</p>
               </div>
             ) : null)}
@@ -389,8 +353,7 @@ function SHAResultPanel({ result, idNumber, visitType, onContinue, onSwitchPriva
           onClick={() => onContinue({ ...md, payment_mode: result.payment_mode, decision, is_verified: true })}
           className="btn-primary w-full flex items-center justify-center gap-2 h-12"
         >
-          <ArrowForward sx={{ fontSize: 18 }} />
-          Continue with SHA Registration
+          Proceed with Registration
         </button>
       ) : decision === 'sha_inactive_prompt' ? (
         <div className="space-y-3">
@@ -398,7 +361,7 @@ function SHAResultPanel({ result, idNumber, visitType, onContinue, onSwitchPriva
 
           {/* Option 1: Pay Arrears via M-Pesa */}
           <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 space-y-3">
-            <p className="text-xs font-black text-amber-800">⚡ Option 1 — Clear Arrears via M-Pesa</p>
+            <p className="text-xs font-black text-amber-800">Option 1 — Clear Arrears via M-Pesa</p>
             {md?.arrears_amount > 0 && (
               <p className="text-xs text-amber-700">Amount owed: <strong>KES {md.arrears_amount?.toLocaleString()}</strong></p>
             )}
@@ -435,7 +398,7 @@ function SHAResultPanel({ result, idNumber, visitType, onContinue, onSwitchPriva
               className="mt-0.5 accent-blue-600"
             />
             <div>
-              <p className="text-xs font-black text-blue-800">🚨 Option 2 — Emergency Override (ECCIF)</p>
+              <p className="text-xs font-black text-blue-800">Option 2 — Emergency Override (ECCIF)</p>
               <p className="text-[10px] text-blue-700 mt-0.5">Keep SHA active under the Emergency fund (ECCIF). Only for genuine emergency presentations.</p>
             </div>
           </label>
@@ -471,13 +434,11 @@ function CRResultPanel({ idNumber, idType, crResult, onContinue }) {
   if (!crResult) {
     return (
       <div className="p-8 space-y-4">
-        <div className="flex items-start gap-4 p-5 rounded-2xl border-2 bg-amber-50 border-amber-200">
+        <div className="flex items-center gap-4 py-3 px-4 rounded-xl border-2 bg-amber-50 border-amber-200">
           <Warning className="text-amber-600" sx={{ fontSize: 28 }} />
           <div>
             <p className="font-black text-slate-800 text-sm">Not in National Registry</p>
-            <p className="text-xs text-slate-600 mt-1">No records found for this ID. You'll register manually — the system will create a registry entry on save.</p>
           </div>
-          <VerificationBadge type="manual" />
         </div>
         <button onClick={() => onContinue({ found: false, id_number: idNumber })} className="btn-primary w-full h-12 flex items-center justify-center gap-2">
           <Edit sx={{ fontSize: 18 }} /> Continue with Manual Registration
@@ -493,9 +454,7 @@ function CRResultPanel({ idNumber, idType, crResult, onContinue }) {
           <Warning className="text-amber-600" sx={{ fontSize: 28 }} />
           <div>
             <p className="font-black text-slate-800 text-sm">Not in National Registry</p>
-            <p className="text-xs text-slate-600 mt-1">No records found. Complete the form manually — the system will auto-register this patient and return a CR number on save.</p>
           </div>
-          <VerificationBadge type="manual" />
         </div>
         <button onClick={() => onContinue({ found: false, id_number: idNumber })} className="btn-primary w-full h-12 flex items-center justify-center gap-2">
           <Edit sx={{ fontSize: 18 }} /> Fill in Details Manually
@@ -506,30 +465,28 @@ function CRResultPanel({ idNumber, idType, crResult, onContinue }) {
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-start gap-4 p-5 rounded-2xl border-2 bg-blue-50 border-blue-200">
+      <div className="flex items-center gap-4 py-3 px-4 rounded-xl border-2 bg-blue-50 border-blue-200">
         <VerifiedUser className="text-blue-600" sx={{ fontSize: 28 }} />
         <div className="flex-1">
           <p className="font-black text-slate-800 text-sm">Found in National Registry</p>
-          <p className="text-xs text-slate-600 mt-1">Demographics pre-filled from the Kenya Client Registry. You may edit before saving.</p>
         </div>
-        <VerificationBadge type="cr_synced" />
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Registry Data</span>
+        <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-100">
+          <span className="text-[10px] font-black text-slate-500 tracking-widest">Identity details</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-px bg-slate-100">
           {[
-            { label: 'CR Number', value: crResult.cr_number },
-            { label: 'Full Name', value: `${crResult.first_name} ${crResult.middle_name || ''} ${crResult.last_name}`.trim() },
-            { label: 'Date of Birth', value: crResult.date_of_birth },
+            { label: 'CR No.', value: crResult.cr_number },
+            { label: 'Full name', value: `${crResult.first_name} ${crResult.middle_name || ''} ${crResult.last_name}`.trim() },
+            { label: 'D.O.B', value: crResult.date_of_birth },
             { label: 'Gender', value: crResult.gender },
             { label: 'Phone', value: crResult.phone },
             { label: 'Location', value: crResult.location },
           ].map(({ label, value }) => value ? (
             <div key={label} className="bg-white px-4 py-3">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+              <p className="text-[9px] font-black text-slate-400">{label}</p>
               <p className="font-bold text-slate-800 text-sm mt-0.5">{value}</p>
             </div>
           ) : null)}
@@ -540,7 +497,7 @@ function CRResultPanel({ idNumber, idType, crResult, onContinue }) {
         onClick={() => onContinue({ ...crResult, payment_mode: 'Private', decision: 'cr_synced', is_verified: true })}
         className="btn-primary w-full h-12 flex items-center justify-center gap-2"
       >
-        <ArrowForward sx={{ fontSize: 18 }} /> Confirm & Fill Details
+        Proceed with Registration
       </button>
     </div>
   );
@@ -669,29 +626,22 @@ function PatientForm({ initial, onSave, onBack }) {
     }
   };
 
-  const badgeType = form.decision === 'sha_active' ? 'sha_active'
-    : form.decision === 'sha_phc' ? 'sha_phc'
-    : form.decision === 'sha_eccif' ? 'sha_eccif'
-    : form.decision === 'cr_synced' ? 'cr_synced'
-    : 'manual';
 
   return (
-    <div className="p-8 space-y-10 overflow-y-auto max-h-[65vh]">
+    <div className="p-8 space-y-6 overflow-y-auto max-h-[65vh]">
       {/* Verification Status Banner */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
+      <div className="flex items-center justify-between py-2 px-4 rounded-xl bg-slate-50 border border-slate-200">
         <div className="flex items-center gap-3">
-          <VerificationBadge type={badgeType} />
           {form.shaNumber && <span className="font-mono text-[10px] text-slate-400">SHA: {form.shaNumber}</span>}
           {form.crNumber && <span className="font-mono text-[10px] text-slate-400">CR: {form.crNumber}</span>}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-slate-500 font-bold">Primary:</span>
-          <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
-            form.paymentMode === 'SHA' ? 'bg-primary-100 text-primary-700'
-            : form.paymentMode === 'PHC' ? 'bg-teal-100 text-teal-700'
-            : 'bg-amber-100 text-amber-700'
-          }`}>{form.paymentMode}</span>
-          {privateCopay && <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">+ Private</span>}
+          <span className={`text-[10px] font-black ${form.paymentMode === 'SHA' ? 'text-primary-600'
+            : form.paymentMode === 'PHC' ? 'text-teal-600'
+              : 'text-amber-600'
+            }`}>{form.paymentMode === 'SHA' ? 'SHA member' : form.paymentMode === 'PHC' ? 'PHC fund' : 'Private / Cash'}</span>
+          {privateCopay && <span className="text-[10px] font-black text-slate-400 leading-none"> + Private copay</span>}
         </div>
       </div>
 
@@ -716,7 +666,7 @@ function PatientForm({ initial, onSave, onBack }) {
             ))}
           </div>
           <div className="grid grid-cols-3 gap-4">
-            <Field label="Date of Birth" error={errors.dateOfBirth}>
+            <Field label="D.O.B" error={errors.dateOfBirth}>
               <div className="relative">
                 <input type="date" className={`input ${isAPIField('dateOfBirth') ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : ''}`}
                   value={form.dateOfBirth} onChange={f('dateOfBirth')} />
@@ -802,7 +752,7 @@ function PatientForm({ initial, onSave, onBack }) {
             <Field label="Blood Group">
               <select className="input" value={form.bloodGroup} onChange={f('bloodGroup')}>
                 <option value="">Unknown</option>
-                {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(g => <option key={g}>{g}</option>)}
+                {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g}>{g}</option>)}
               </select>
             </Field>
             <Field label="Known Allergies">
@@ -925,7 +875,7 @@ export default function PatientRegistrationModal({ userId, onClose, onSave }) {
           identification_type: idContext.idType,
           identification_number: idContext.idNumber,
         });
-      } catch {}
+      } catch { }
     }
     setCrResult(cr);
   };
@@ -939,7 +889,6 @@ export default function PatientRegistrationModal({ userId, onClose, onSave }) {
             <Person className="text-white" sx={{ fontSize: 22 }} />
             <div>
               <h2 className="font-black text-white text-base">Register New Patient</h2>
-              <p className="text-white/70 text-[10px] font-semibold">{hospital.name} · SHA & CR Integrated</p>
             </div>
           </div>
           <button onClick={onClose} className="text-white/70 hover:text-white transition-colors text-xl font-bold">×</button>

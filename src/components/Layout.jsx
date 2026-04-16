@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -10,7 +10,8 @@ import {
   Inventory, ReceiptLong, Group, BarChart, 
   Settings, Logout, Menu, Close, 
   NotificationsNone, AccountCircle, AdminPanelSettings, 
-  PriceCheck, MonitorHeart, Refresh
+  PriceCheck, MonitorHeart, Refresh,
+  Fullscreen, FullscreenExit
 } from '@mui/icons-material';
 import NotificationBell from './NotificationBell';
 import { notify } from '../utils/toast';
@@ -114,6 +115,31 @@ export default function Layout() {
     });
   };
 
+  // ── Fullscreen ────────────────────────────────────────────────────────────────
+  const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFSChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFSChange);
+    // F11 shortcut (browser normally handles F11, so intercept it at app level too)
+    const onKey = (e) => {
+      if (e.key === 'F11') { e.preventDefault(); toggleFullscreen(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFSChange);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [toggleFullscreen]);
+
 
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
@@ -159,26 +185,6 @@ export default function Layout() {
       </div>
 
 
-      {/* Department Card */}
-      {isSidebarExpanded && (
-        <div className={`mx-3 my-3 rounded-xl overflow-hidden border border-slate-100 ${roleBadge.bg} animate-in fade-in duration-300`}>
-          <div className={`h-1 w-full ${roleBadge.bar}`} />
-          <div className="px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <span className="text-lg leading-none">{roleBadge.icon}</span>
-              <div className="min-w-0">
-                <p className={`text-[11px] font-black uppercase tracking-widest leading-none ${roleBadge.txt}`}>{roleBadge.label}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Collapsed: show accent dot only */}
-      {!isSidebarExpanded && (
-        <div className="flex justify-center py-2">
-          <span className={`w-2 h-2 rounded-full ${roleBadge.bar}`} />
-        </div>
-      )}
 
       {/* Nav — flat list, no group headers */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
@@ -234,7 +240,7 @@ export default function Layout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <div className="fixed top-6 right-8 z-[100] flex items-center gap-4 animate-in slide-in-from-top-4 duration-700">
+        <div className="fixed top-6 right-8 z-[100] flex items-center gap-3 animate-in slide-in-from-top-4 duration-700">
           <div className="hidden sm:flex flex-col items-end gap-0.5 pointer-events-none">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
               {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}
@@ -245,6 +251,17 @@ export default function Layout() {
           </div>
           <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
           <NotificationBell />
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen (F11)' : 'Enter fullscreen (F11)'}
+            className={`transition-colors hover:scale-110 active:scale-95 transition-transform
+              ${isFullscreen ? 'text-primary-600' : 'text-slate-400 hover:text-slate-700'}`}
+          >
+            {isFullscreen
+              ? <FullscreenExit sx={{ fontSize: 22 }} />
+              : <Fullscreen sx={{ fontSize: 22 }} />}
+          </button>
         </div>
 
         {/* Unified Toggle Button (Ghost Style) */}

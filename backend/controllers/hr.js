@@ -29,7 +29,7 @@ export async function getDepartments(_req, res, next) {
 
 export async function createUser(req, res, next) {
   try {
-    const { email, password, firstName, lastName, employeeNo, departmentId, roleId, dutyStation } = req.body;
+    const { email, password, firstName, lastName, employeeNo, departmentId, roleId, dutyStation, hwrNumber, licenseBody } = req.body;
     const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
       email, password, email_confirm: true,
       user_metadata: { first_name: firstName, last_name: lastName },
@@ -44,7 +44,9 @@ export async function createUser(req, res, next) {
       email,
       employee_no: employeeNo,
       department_id: departmentId || null,
-      duty_station: dutyStation || null
+      duty_station: dutyStation || null,
+      hwr_number: hwrNumber || null,
+      license_body: licenseBody || null,
     });
     if (insertErr) throw insertErr;
 

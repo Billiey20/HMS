@@ -5,11 +5,11 @@ import {
 } from '@mui/icons-material';
 
 const wardColors = {
-  'General Ward':   'text-blue-600',
+  'General Ward': 'text-blue-600',
   'Maternity Ward': 'text-rose-600',
-  'Surgical Ward':  'text-slate-600',
-  'Paediatric Ward':'text-amber-600',
-  'ICU / HDU':      'text-red-600',
+  'Surgical Ward': 'text-slate-600',
+  'Paediatric Ward': 'text-amber-600',
+  'ICU / HDU': 'text-red-600',
 };
 
 import { ipdService } from '../../services/ipd';
@@ -18,7 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 function AdmitModal({ visit, onClose, onSave }) {
   const { user } = useAuth();
   const [wards, setWards] = useState([]);
-  const [beds, setBeds]   = useState([]);
+  const [beds, setBeds] = useState([]);
   const [loadingBeds, setLoadingBeds] = useState(false);
 
   const [form, setForm] = useState({
@@ -90,9 +90,9 @@ function AdmitModal({ visit, onClose, onSave }) {
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button 
+          <button
             disabled={!form.ward_id || !form.bed_id || !form.admitting_diagnosis}
-            onClick={() => onSave(form)} 
+            onClick={() => onSave(form)}
             className="btn-primary disabled:opacity-50">
             <Hotel sx={{ fontSize: 16 }} /> Confirm Admission
           </button>
@@ -124,9 +124,9 @@ function DischargeModal({ admission, onClose, onDischarge }) {
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button 
+          <button
             disabled={!summary.trim()}
-            onClick={() => onDischarge(admission.id, { summary })} 
+            onClick={() => onDischarge(admission.id, { summary })}
             className="bg-emerald-600 text-white font-black px-6 py-2 rounded-xl text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
             Confirm Discharge
           </button>
@@ -137,14 +137,14 @@ function DischargeModal({ admission, onClose, onDischarge }) {
 }
 
 export default function Admissions() {
-  const [activeTab, setActiveTab]   = useState('inpatients'); // 'inpatients' or 'pending'
+  const [activeTab, setActiveTab] = useState('inpatients'); // 'inpatients' or 'pending'
   const [admissions, setAdmissions] = useState([]);
-  const [pending, setPending]       = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [search, setSearch]         = useState('');
+  const [pending, setPending] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [admittingPatient, setAdmittingPatient] = useState(null);
   const [discharging, setDischarging] = useState(null);
-  const [wardFilter, setWardFilter]   = useState('all');
+  const [wardFilter, setWardFilter] = useState('all');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -174,7 +174,7 @@ export default function Admissions() {
 
   const filteredPending = pending
     .filter(p => {
-      const name = p.patients ? `${p.patients.first_name} ${p.patients.last_name}` : `Unknown Patient (${p.patient_id?.slice(0,8)})`;
+      const name = p.patients ? `${p.patients.first_name} ${p.patients.last_name}` : `Unknown Patient (${p.patient_id?.slice(0, 8)})`;
       const pNo = p.patients?.patient_no || '';
       return name.toLowerCase().includes(search.toLowerCase()) || pNo.toLowerCase().includes(search.toLowerCase());
     });
@@ -208,8 +208,7 @@ export default function Admissions() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Inpatient — ADT</h1>
-          <p className="text-sm font-medium text-slate-500">Admissions · Discharges · Transfers</p>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Inpatients</h1>
         </div>
       </div>
 
@@ -217,7 +216,7 @@ export default function Admissions() {
       <div className="flex gap-4 border-b border-slate-200">
         {[
           { key: 'inpatients', label: 'Active Inpatients', count: admissions.length },
-          { key: 'pending',    label: 'Awaiting Admission', count: pending.length },
+          { key: 'pending', label: 'Awaiting Admission', count: pending.length },
         ].map(({ key, label, count }) => (
           <button key={key}
             onClick={() => setActiveTab(key)}
@@ -251,7 +250,7 @@ export default function Admissions() {
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     {['Patient ID', 'Patient', 'Ward / Bed', 'Diagnosis', 'Admitted', 'Doctor', 'Actions'].map(h => (
-                      <th key={h} className="px-5 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">{h}</th>
+                      <th key={h} className="px-5 py-4 text-[11px] font-black text-slate-500 tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -265,7 +264,7 @@ export default function Admissions() {
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap">
                         <span className={`font-black text-[11px] capitalize tracking-wider ${wardColors[adm.ward] || 'text-slate-500'}`}>{adm.ward?.toLowerCase()}</span>
-                        <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase">BED {adm.bed_no}</p>
+                        <p className="text-[11px] font-bold text-slate-400 mt-1">bed {adm.bed_no}</p>
                       </td>
                       <td className="px-5 py-4 text-slate-700 max-w-[200px]">
                         <p className="truncate font-semibold text-xs">{adm.admitting_diagnosis}</p>
@@ -277,7 +276,7 @@ export default function Admissions() {
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
                           <button onClick={() => setDischarging(adm)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3 py-1.5 rounded-lg flex items-center gap-2 text-[10px] uppercase shadow-sm active:scale-95 transition-all">
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-3 py-1.5 rounded-lg flex items-center gap-2 text-[10px] shadow-sm active:scale-95 transition-all">
                             <ExitToApp sx={{ fontSize: 14 }} /> Discharge
                           </button>
                         </div>
@@ -291,7 +290,7 @@ export default function Admissions() {
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     {['Patient Information', 'Triage & History', 'Decision Reason', 'Actions'].map(h => (
-                      <th key={h} className="px-5 py-4 text-[11px] font-black text-slate-500 uppercase tracking-widest">{h}</th>
+                      <th key={h} className="px-5 py-4 text-[11px] font-black text-slate-500 tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -301,7 +300,7 @@ export default function Admissions() {
                       <td className="px-5 py-4">
                         <p className="font-black text-slate-800 text-base leading-tight mb-1">
                           {p.patients ? `${p.patients.first_name} ${p.patients.last_name}` : (
-                            <span className="text-slate-400 italic">Unknown Patient ({p.patient_id?.slice(0,8)})</span>
+                            <span className="text-slate-400 italic">Unknown Patient ({p.patient_id?.slice(0, 8)})</span>
                           )}
                         </p>
                         <p className="text-xs font-bold text-slate-500">{p.patients?.patient_no} · {p.patients?.age} · {p.patients?.gender}</p>
@@ -309,12 +308,12 @@ export default function Admissions() {
                       <td className="px-5 py-4">
                         <p className="text-xs font-semibold text-slate-600 line-clamp-2 max-w-xs">{p.presenting_complaint}</p>
                       </td>
-                      <td className="px-5 py-4 font-bold text-xs text-primary-700 uppercase italic">
+                      <td className="px-5 py-4 font-bold text-xs text-primary-700 italic">
                         Sent from Consultation
                       </td>
                       <td className="px-5 py-4">
                         <button onClick={() => setAdmittingPatient(p)}
-                          className="btn-primary px-4 py-2 text-[11px] font-black uppercase shadow-lg shadow-primary-500/20 active:scale-95 transition-all">
+                          className="btn-primary px-4 py-2 text-[11px] font-black shadow-lg shadow-primary-500/20 active:scale-95 transition-all">
                           <Hotel sx={{ fontSize: 16 }} /> Admit Now
                         </button>
                       </td>
@@ -324,33 +323,33 @@ export default function Admissions() {
               </>
             )}
           </table>
-          
+
           {(activeTab === 'inpatients' ? filteredAdmissions : filteredPending).length === 0 && !loading && (
-             <div className="p-20 text-center text-slate-400 bg-white">
-                <Hotel sx={{ fontSize: 56 }} className="mb-4 text-slate-200" />
-                <p className="text-lg font-black text-slate-800">Queue is Clear</p>
-                <p className="text-sm font-medium mt-1">
-                  {activeTab === 'inpatients' 
-                    ? "There are currently no active inpatients in the ward." 
-                    : "No patients are currently awaiting ward assignment. New referrals from clinicians will appear here."}
-                </p>
-             </div>
+            <div className="p-20 text-center text-slate-400 bg-white">
+              <Hotel sx={{ fontSize: 56 }} className="mb-4 text-slate-200" />
+              <p className="text-lg font-black text-slate-800">Queue is Clear</p>
+              <p className="text-sm font-medium mt-1">
+                {activeTab === 'inpatients'
+                  ? "There are currently no active inpatients in the ward."
+                  : "No patients are currently awaiting ward assignment. New referrals from clinicians will appear here."}
+              </p>
+            </div>
           )}
-          
+
           {loading && (
-             <div className="p-20 text-center text-slate-400 animate-pulse">
-                <p className="text-lg font-black tracking-widest uppercase">Syncing Live Records...</p>
-             </div>
+            <div className="p-20 text-center text-slate-400 animate-pulse">
+              <p className="text-lg font-black tracking-widest uppercase">Syncing Live Records...</p>
+            </div>
           )}
         </div>
       </div>
 
       {admittingPatient && <AdmitModal visit={admittingPatient} onClose={() => setAdmittingPatient(null)} onSave={handleAdmit} />}
       {discharging && (
-        <DischargeModal 
-          admission={{ name: discharging.patient_name, diagnosis: discharging.admitting_diagnosis, id: discharging.admission_id }} 
-          onClose={() => setDischarging(null)} 
-          onDischarge={handleDischarge} 
+        <DischargeModal
+          admission={{ name: discharging.patient_name, diagnosis: discharging.admitting_diagnosis, id: discharging.admission_id }}
+          onClose={() => setDischarging(null)}
+          onDischarge={handleDischarge}
         />
       )}
     </div>

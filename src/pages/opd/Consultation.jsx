@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Person, ArrowBack, Save, Add, Delete, CheckCircle,
-  Send, HourglassEmpty, Refresh
+  Send, HourglassEmpty, Refresh, Search
 } from '@mui/icons-material';
 
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,101 @@ import { consultationService, labService, opdService, notificationService } from
 import LabReportPreview from '../../components/modals/LabReportPreview';
 import { notify } from '../../utils/toast';
 import LoadingDots from '../../components/common/LoadingDots';
+import { supabase } from '../../lib/supabase';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
+
+// ── ICD-11 WHO API Search Field ───────────────────────────────────────────────
+function ICD11SearchField({ value, onChange }) {
+  const [query, setQuery]       = useState(value || '');
+  const [results, setResults]   = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [open, setOpen]         = useState(false);
+  const containerRef            = useRef(null);
+  const debounceRef             = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const search = useCallback(async (q) => {
+    if (!q || q.length < 2) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) };
+      const res = await fetch(`${API_URL}/icd11/search?q=${encodeURIComponent(q)}`, { headers });
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
+      setResults(data.results || []);
+      setOpen(true);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleInput = (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    // If user clears the field, propagate empty upward
+    if (!q) { onChange(''); setResults([]); setOpen(false); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(q), 400);
+  };
+
+  const select = (item) => {
+    const display = `${item.code} — ${item.title}`;
+    setQuery(display);
+    onChange(display);
+    setResults([]);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" sx={{ fontSize: 16 }} />
+        <input
+          className="input text-sm pl-8"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          placeholder="Search ICD-11 code or condition name…"
+        />
+        {loading && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-slate-200 border-t-primary-600 rounded-full animate-spin" />
+        )}
+      </div>
+      {open && results.length > 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+          {results.map((item, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => select(item)}
+              className="w-full text-left px-4 py-2.5 hover:bg-primary-50 border-b border-slate-50 last:border-0 transition-colors"
+            >
+              <span className="font-mono text-xs font-black text-primary-700 mr-2 bg-primary-50 px-1.5 py-0.5 rounded">{item.code}</span>
+              <span className="text-sm text-slate-700">{item.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && results.length === 0 && query.length >= 2 && !loading && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 p-3 bg-white border border-slate-200 rounded-xl shadow-lg text-xs text-slate-400 text-center">
+          No ICD-11 matches. Check spelling or enter code manually.
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = ['Triage & Vitals', 'Clinical History', 'Examination', 'Lab & Imaging Orders', 'Diagnosis & Plan', 'Prescriptions', 'Clinical Decision'];
@@ -669,8 +764,11 @@ export default function Consultation() {
                     placeholder="Main working diagnosis…" />
                 </div>
                 <div>
-                  <label className="label">ICD-10 Code (optional)</label>
-                  <input className="input text-sm" value={icd10} onChange={e => setIcd10(e.target.value)} placeholder="e.g. J06.9" />
+                  <label className="label">
+                    ICD-11 Code
+                    <span className="ml-1.5 text-[9px] font-black bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded-full uppercase tracking-widest">WHO API</span>
+                  </label>
+                  <ICD11SearchField value={icd10} onChange={setIcd10} />
                 </div>
               </div>
               <TextArea label="Secondary / Differential Diagnoses" value={secondaryDx} onChange={setSecondaryDx} rows={2}

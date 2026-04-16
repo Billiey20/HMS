@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Add, FilterList, Person, Phone, Badge, Refresh, LocalHospital } from '@mui/icons-material';
+import { Search, Add, FilterList, Person, Phone, Badge, Refresh, LocalHospital, HealthAndSafety, CreditCard } from '@mui/icons-material';
 import { patientService, opdService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PatientRegistrationModal from '../../components/modals/PatientRegistrationModal';
@@ -132,17 +132,16 @@ export default function PatientCenter() {
                   <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-5 py-4 font-mono text-[10px] text-slate-500">{p.patient_no}</td>
                     <td className="px-5 py-4">
-                      <p className="font-black text-slate-800 leading-tight border-b border-transparent">{p.first_name} {p.middle_name} {p.last_name}</p>
-                      {(p.payment_mode === 'SHA' || p.payment_mode === 'PHC') && (
-                        <span className="inline-flex mt-1.5 px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-black tracking-widest uppercase">
-                          {p.payment_mode} COVERED
-                        </span>
-                      )}
-                      {(!p.payment_mode || p.payment_mode === 'Private') && (
-                        <span className="inline-flex mt-1.5 px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-[9px] font-bold tracking-widest uppercase">
-                          PRIVATE
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2.5">
+                        {p.payment_mode === 'SHA' ? (
+                          <HealthAndSafety className="text-emerald-500" sx={{ fontSize: 18 }} titleAccess="SHA Covered" />
+                        ) : p.payment_mode === 'PHC' ? (
+                          <HealthAndSafety className="text-blue-500" sx={{ fontSize: 18 }} titleAccess="PHC Covered" />
+                        ) : (
+                          <CreditCard className="text-slate-400" sx={{ fontSize: 18 }} titleAccess="Private / Cash" />
+                        )}
+                        <p className="font-black text-slate-800 leading-tight">{p.first_name} {p.middle_name || ''} {p.last_name}</p>
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-xs font-bold text-slate-600">{p.age} · <span className="capitalize">{p.gender?.toLowerCase()}</span></td>
                     <td className="px-5 py-4 text-xs font-mono text-slate-500">{p.phone || '—'}</td>

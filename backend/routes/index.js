@@ -12,6 +12,7 @@ import reportsRouter    from './reports.js';
 import inventoryRouter  from './inventory.js';
 import shaRouter        from './sha.js';
 import mpesaRouter      from './mpesa.js';
+import icd11Router      from './icd11.js';
 
 const router = Router();
 
@@ -36,5 +37,6 @@ router.use('/reports',   reportsRouter);
 router.use('/inventory', inventoryRouter);
 router.use('/sha',       shaRouter);
 router.use('/mpesa',     mpesaRouter);
+router.use('/icd11',     icd11Router);
 
 export default router;

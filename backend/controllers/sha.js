@@ -58,20 +58,23 @@ function resolveDecision(eligible, memberStatus, visitType = 'Walk-In') {
   return { decision: 'sha_inactive_prompt', payment_mode: 'Pending' };
 }
 
-// ── SHA Token ──────────────────────────────────────────────────────────────────
-let _shaToken = null;
-let _shaTokenExpiry = 0;
+// ── DHA Token (Agent + Username + Password auth) ──────────────────────────────
+let _dhaToken = null;
+let _dhaTokenExpiry = 0;
 
-async function getSHAToken() {
-  if (_shaToken && Date.now() < _shaTokenExpiry) return _shaToken;
-  const res = await axios.post(`${process.env.SHA_API_BASE_URL}/oauth/token`, {
+async function getDHAToken() {
+  if (_dhaToken && Date.now() < _dhaTokenExpiry) return _dhaToken;
+  const res = await axios.post(`${process.env.DHA_BASE_URL}${process.env.DHA_AUTH_PATH}`, {
     grant_type: 'client_credentials',
-    client_id: process.env.SHA_CLIENT_ID,
-    client_secret: process.env.SHA_CLIENT_SECRET,
+    agent: process.env.DHA_AGENT,
+    username: process.env.DHA_USERNAME,
+    password: process.env.DHA_PASSWORD,
+    client_id: process.env.DHA_KEY,
+    client_secret: process.env.DHA_SECRET,
   });
-  _shaToken = res.data.access_token;
-  _shaTokenExpiry = Date.now() + (res.data.expires_in - 60) * 1000;
-  return _shaToken;
+  _dhaToken = res.data.access_token;
+  _dhaTokenExpiry = Date.now() + ((res.data.expires_in || 3600) - 60) * 1000;
+  return _dhaToken;
 }
 
 // ── MOCK DATA ──────────────────────────────────────────────────────────────────
@@ -177,12 +180,15 @@ export async function verifyEligibility(req, res, next) {
       // ── MOCK MODE ──────────────────────────────────────────────────────────
       shaResponse = mockSHAResponse(identification_number);
     } else {
-      // ── LIVE MODE ──────────────────────────────────────────────────────────
-      const token = await getSHAToken();
-      const { data } = await axios.get(`${process.env.SHA_API_BASE_URL}/v2/eligibility`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { identification_type, identification_number },
-      });
+      // ── LIVE MODE (DHA API) ────────────────────────────────────────────────
+      const token = await getDHAToken();
+      const { data } = await axios.get(
+        `${process.env.DHA_BASE_URL}${process.env.SHA_ELIGIBILITY_PATH}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { identification_type, identification_number },
+        }
+      );
       shaResponse = data;
     }
 
@@ -255,20 +261,15 @@ export async function lookupRegistry(req, res, next) {
     if (process.env.MOCK_CR_API === 'true') {
       crData = mockCRResponse(identification_number);
     } else {
-      // ── LIVE: Get CR Token ─────────────────────────────────────────────────
-      // (CR may share token endpoint with SHA or have its own — adjust as needed)
-      const tokenRes = await axios.post(`${process.env.CR_API_BASE_URL}/oauth/token`, {
-        grant_type: 'client_credentials',
-        client_id: process.env.CR_CLIENT_ID,
-        client_secret: process.env.CR_CLIENT_SECRET,
-      });
-      const crToken = tokenRes.data.access_token;
-
-      const { data } = await axios.get(`${process.env.CR_API_BASE_URL}/api/v1/patients`, {
-        headers: { Authorization: `Bearer ${crToken}`, Accept: 'application/json' },
-        params: { identification_number, identification_type },
-      });
-
+      // ── LIVE: DHA Client Registry ──────────────────────────────────────────
+      const crToken = await getDHAToken();
+      const { data } = await axios.get(
+        `${process.env.DHA_BASE_URL}${process.env.CR_LOOKUP_PATH}`,
+        {
+          headers: { Authorization: `Bearer ${crToken}`, Accept: 'application/json' },
+          params: { identification_number, identification_type },
+        }
+      );
       crData = data?.id ? { found: true, ...data } : { found: false };
     }
 
@@ -320,12 +321,7 @@ export async function registerInRegistry(req, res, next) {
       return res.json({ cr_number: crNum, status: 'created', message: 'Client registered successfully (mock)' });
     }
 
-    const tokenRes = await axios.post(`${process.env.CR_API_BASE_URL}/oauth/token`, {
-      grant_type: 'client_credentials',
-      client_id: process.env.CR_CLIENT_ID,
-      client_secret: process.env.CR_CLIENT_SECRET,
-    });
-    const crToken = tokenRes.data.access_token;
+    const crToken = await getDHAToken();
 
     const payload = {
       identification_number,
@@ -340,9 +336,11 @@ export async function registerInRegistry(req, res, next) {
       citizenship: nationality,
     };
 
-    const { data } = await axios.post(`${process.env.CR_API_BASE_URL}/api/v1/patients`, payload, {
-      headers: { Authorization: `Bearer ${crToken}`, 'Content-Type': 'application/json' },
-    });
+    const { data } = await axios.post(
+      `${process.env.DHA_BASE_URL}${process.env.CR_REGISTER_PATH}`,
+      payload,
+      { headers: { Authorization: `Bearer ${crToken}`, 'Content-Type': 'application/json' } }
+    );
 
     return res.json({ cr_number: data.id, status: data.status, message: data.message });
   } catch (err) {

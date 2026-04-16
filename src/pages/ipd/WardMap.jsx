@@ -112,7 +112,7 @@ export default function WardMap() {
       {/* Ward filter */}
       <div className="flex gap-4 flex-wrap items-center justify-between">
         <div className="flex gap-2 flex-wrap items-center">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Filter Ward:</span>
+          <span className="text-[10px] font-black text-slate-400 tracking-wider mr-2">Filter ward:</span>
           <button onClick={() => setWardFilter('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all ${wardFilter === 'all' ? 'bg-slate-800 text-white border-transparent shadow-lg shadow-slate-200' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
             All Wards
@@ -126,7 +126,7 @@ export default function WardMap() {
         </div>
         <button onClick={loadData} className="flex items-center gap-2 text-slate-400 hover:text-primary-600 transition-colors">
            <Hotel sx={{ fontSize: 18 }} />
-           <span className="text-xs font-black uppercase tracking-widest">Refresh Map</span>
+           <span className="text-xs font-black tracking-wider">Refresh map</span>
         </button>
       </div>
 
@@ -142,7 +142,7 @@ export default function WardMap() {
                   <div className={`w-2 h-8 rounded-full ${cfg.header}`} />
                   <div>
                     <h2 className="text-lg font-black text-slate-800 leading-none">{ward.name}</h2>
-                    <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight">Active Inpatient Ward</p>
+                    <p className="text-[10px] font-bold text-slate-400 mt-1 tracking-tight">Active inpatient ward</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
@@ -196,7 +196,7 @@ export default function WardMap() {
       {selected && (
         <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white shadow-2xl border-l border-slate-200 flex flex-col transform transition-transform animate-in slide-in-from-right">
           <div className={`${WARD_COLOR[selected.ward.color || 'blue'].header} px-5 py-4 flex justify-between items-center`}>
-            <h3 className="font-black text-white uppercase tracking-widest text-sm">Bed {selected.bed.no} Detail</h3>
+            <h3 className="font-black text-white tracking-wider text-sm">Bed {selected.bed.no} detail</h3>
             <button onClick={() => setSelected(null)} className="text-white/70 hover:text-white text-2xl font-bold">×</button>
           </div>
 
@@ -247,7 +247,7 @@ export default function WardMap() {
             ) : (
               <div className="pt-4 bg-emerald-50/30 p-4 rounded-2xl border border-emerald-100 border-dashed text-center">
                 <Hotel className="text-emerald-200 mb-2" sx={{ fontSize: 40 }} />
-                <p className="text-sm font-black text-emerald-800 uppercase">Available for Admission</p>
+                <p className="text-sm font-black text-emerald-800">Available for admission</p>
                 <p className="text-xs text-emerald-600 mt-1 mb-4">This bed is ready for a new inpatient assignment.</p>
                 {selected.bed.status === 'available' && (
                   <button className="btn-primary w-full justify-center py-3 rounded-2xl">

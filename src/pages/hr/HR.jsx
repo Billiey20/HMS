@@ -21,7 +21,7 @@ const ROLE_TEXT_COLOR = {
 
 
 function AddStaffModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '', roleId: '', deptId: '', empNo: '', dutyStation: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '', roleId: '', deptId: '', empNo: '', dutyStation: '', hwrNumber: '', licenseBody: '' });
   const [depts, setDepts] = useState([]);
   const [roles, setRoles] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -55,6 +55,8 @@ function AddStaffModal({ onClose, onSave }) {
         departmentId: form.deptId || null,
         roleId: form.roleId,
         dutyStation: form.dutyStation,
+        hwrNumber: form.hwrNumber || null,
+        licenseBody: form.licenseBody || null,
       });
       onSave();
       onClose();
@@ -147,6 +149,34 @@ function AddStaffModal({ onClose, onSave }) {
                     )}
                   </datalist>
                   <input list="duty-stations" className="input" value={form.dutyStation} onChange={f('dutyStation')} placeholder="Select from list or type custom..." />
+                </div>
+              </div>
+            </div>
+
+            {/* HWR / Clinical Credentials */}
+            <hr className="border-slate-100 my-1" />
+            <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-3">
+              <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">SHA Claims — Clinical Credentials</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">HWR Number
+                    <span className="ml-1 text-[9px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full uppercase tracking-widest">SHA Required</span>
+                  </label>
+                  <input className="input font-mono" value={form.hwrNumber} onChange={f('hwrNumber')} placeholder="HWR-XXXX / license no." />
+                  <p className="text-[10px] text-slate-400 mt-1">Health Worker Registry number from DHA portal</p>
+                </div>
+                <div>
+                  <label className="label">Licensing Body</label>
+                  <select className="input" value={form.licenseBody} onChange={f('licenseBody')}>
+                    <option value="">Select…</option>
+                    <option>Kenya Medical Practitioners & Dentists Council (KMPDC)</option>
+                    <option>Nursing Council of Kenya (NCK)</option>
+                    <option>Pharmacy & Poisons Board (PPB)</option>
+                    <option>Clinical Officers Council (COC)</option>
+                    <option>Kenya Medical Laboratory Technicians & Technologists Board (KMLTTB)</option>
+                    <option>Nutritionists & Dietitians Institute of Kenya</option>
+                    <option>Other</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -285,6 +315,9 @@ export default function HR() {
                              <div>
                                 <p className="font-bold text-slate-800 leading-tight">{s.first_name} {s.last_name}</p>
                                 <p className="text-[10px] font-mono text-slate-400">{s.employee_no || 'NO-ID'}</p>
+                                {s.hwr_number && (
+                                  <p className="text-[9px] font-mono text-blue-500 mt-0.5">HWR: {s.hwr_number}</p>
+                                )}
                              </div>
                           </div>
                        </td>
