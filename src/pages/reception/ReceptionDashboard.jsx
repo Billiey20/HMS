@@ -4,6 +4,7 @@ import { patientService, opdService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PatientRegistrationModal from '../../components/modals/PatientRegistrationModal';
 import PriceListModal from '../../components/modals/PriceListModal';
+import { toast } from 'react-toastify';
 
 function StatusBadge({ status }) {
   const map = {
@@ -47,8 +48,7 @@ export default function ReceptionDashboard() {
     return () => clearTimeout(t);
   }, [loadPatients]);
 
-  const sendToQueue = async (patient) => {
-    if (!window.confirm(`Queue ${patient.first_name} for Triage?`)) return;
+  const sendToQueue = async (patient, targetStatus, displayName) => {
     setQueueing(patient.id);
     try {
       // Auto-assign room logic (mocking room choice for now)
@@ -58,13 +58,13 @@ export default function ReceptionDashboard() {
       await opdService.createVisit({
         patient_id: patient.id,
         triage_priority: 'normal',
-        status: 'waiting_triage',
+        status: targetStatus,
         visit_type: 'Walk-In',
       });
       await loadPatients();
-      alert(`Success! Patient queued for Triage.`);
+      toast.success(`Patient queued for ${displayName}.`);
     } catch (e) {
-      alert('Failed to send to queue: ' + e.message);
+      toast.error('Failed to send to queue: ' + e.message);
     } finally {
       setQueueing(null);
     }
@@ -149,12 +149,24 @@ export default function ReceptionDashboard() {
                       const activeVisit = activeVisits.find(v => v.patient_id === p.id && !['completed', 'cancelled'].includes(v.status));
                       if (!activeVisit && p.status === 'active') {
                         return (
-                          <button
-                            onClick={() => sendToQueue(p)}
+                          <select
+                            className="input text-xs py-1.5 px-2 w-[140px] bg-slate-50 border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+                            defaultValue=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const [status, label] = e.target.value.split('|');
+                                sendToQueue(p, status, label);
+                                e.target.value = '';
+                              }
+                            }}
                             disabled={queueing === p.id}
-                            className="btn-primary text-xs py-1.5 px-4 disabled:opacity-50 flex items-center gap-2">
-                            {queueing === p.id ? 'Routing...' : <><LocalHospital sx={{ fontSize: 14 }} /> To Triage</>}
-                          </button>
+                          >
+                            <option value="" disabled>{queueing === p.id ? 'Routing...' : 'Route to...'}</option>
+                            <option value="waiting_triage|Triage">Triage</option>
+                            <option value="waiting_doctor|Doctor (OPD)">Doctor (OPD)</option>
+                            <option value="waiting_lab|Laboratory">Laboratory</option>
+                            <option value="waiting_pharmacy|Pharmacy">Pharmacy</option>
+                          </select>
                         );
                       }
                       if (activeVisit?.status === 'waiting_triage') {

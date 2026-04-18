@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  ReceiptLong, Search, Add, Print, Payments, Refresh
+  ReceiptLong, Search, Add, Print, Payments, Refresh,
+  VerifiedUser, CancelOutlined, Shield, Warning, CheckCircle
 } from '@mui/icons-material';
 import { billingService, patientService } from '../../services/api';
 import { shaService } from '../../services/index';
 import { useAuth } from '../../context/AuthContext';
 import OfficialReceiptModal from '../../components/modals/OfficialReceiptModal';
+import { toast } from 'react-toastify';
 
 const SERVICE_CATEGORIES = {
   consultation: { label: 'Consultation',  color: 'bg-blue-100 text-blue-700'    },
@@ -16,25 +18,26 @@ const SERVICE_CATEGORIES = {
 };
 
 const PRICE_LIST = [
-  { name: 'OPD Consultation (General)',  category: 'consultation', price: 500   },
-  { name: 'OPD Consultation (Specialist)',category:'consultation', price: 1500  },
-  { name: 'Full Haemogram / CBC',        category: 'lab',         price: 1200  },
-  { name: 'Urinalysis',                  category: 'lab',         price: 400   },
-  { name: 'Random Blood Sugar',          category: 'lab',         price: 300   },
-  { name: 'Malaria RDT',                 category: 'lab',         price: 500   },
-  { name: 'HIV Test',                    category: 'lab',         price: 600   },
-  { name: 'UECs',                        category: 'lab',         price: 2000  },
-  { name: 'LFTs',                        category: 'lab',         price: 2500  },
-  { name: 'Ward Bed (General, per day)', category: 'ward',        price: 1500  },
-  { name: 'Ward Bed (ICU, per day)',     category: 'ward',        price: 8000  },
-  { name: 'Ward Bed (Maternity, per day)',category:'ward',        price: 2500  },
-  { name: 'Normal Delivery',             category: 'procedure',   price: 7500  },
-  { name: 'C-Section (Theatre)',         category: 'procedure',   price: 45000 },
-  { name: 'IV Cannulation',              category: 'procedure',   price: 300   },
-  { name: 'Amoxicillin 500mg (21 caps)', category: 'pharmacy',    price: 168   },
-  { name: 'Paracetamol 500mg (20 tabs)', category: 'pharmacy',    price: 40    },
-  { name: 'Ceftriaxone 1g IV',           category: 'pharmacy',    price: 250   },
-  { name: 'NS 500ml IV Bag',             category: 'pharmacy',    price: 120   },
+  { name: 'OPD Consultation (General)',    service_code: 'SHA-OUT-01', category: 'consultation', price: 500   },
+  { name: 'OPD Consultation (Specialist)', service_code: 'SHA-OUT-01', category: 'consultation', price: 1500  },
+  { name: 'Full Haemogram / CBC',          service_code: 'PRIV-LAB-01', category: 'lab',         price: 1200  },
+  { name: 'Urinalysis',                    service_code: 'PRIV-LAB-02', category: 'lab',         price: 400   },
+  { name: 'Random Blood Sugar',            service_code: 'PRIV-LAB-03', category: 'lab',         price: 300   },
+  { name: 'Malaria RDT',                   service_code: 'PRIV-LAB-04', category: 'lab',         price: 500   },
+  { name: 'HIV Test',                      service_code: 'PRIV-LAB-05', category: 'lab',         price: 600   },
+  { name: 'UECs',                          service_code: 'PRIV-LAB-06', category: 'lab',         price: 2000  },
+  { name: 'LFTs',                          service_code: 'PRIV-LAB-07', category: 'lab',         price: 2500  },
+  { name: 'Ward Bed (General, per day)',   service_code: 'SHA-INP-01', category: 'ward',        price: 1500  },
+  { name: 'Ward Bed (ICU, per day)',       service_code: 'PRIV-WARD-02', category: 'ward',       price: 8000  },
+  { name: 'Ward Bed (Maternity, per day)', service_code: 'PRIV-WARD-03', category: 'ward',       price: 2500  },
+  { name: 'Normal Delivery',               service_code: 'PRIV-PROC-01', category: 'procedure',  price: 7500  },
+  { name: 'C-Section (Theatre)',           service_code: 'SHA-MAT-01', category: 'procedure',   price: 45000 },
+  { name: 'IV Cannulation',                service_code: 'PRIV-PROC-03', category: 'procedure',  price: 300   },
+  { name: 'Amoxicillin 500mg (21 caps)',   service_code: 'PRIV-PHA-01', category: 'pharmacy',   price: 168   },
+  { name: 'Paracetamol 500mg (20 tabs)',   service_code: 'PRIV-PHA-02', category: 'pharmacy',   price: 40    },
+  { name: 'Ceftriaxone 1g IV',             service_code: 'PRIV-PHA-03', category: 'pharmacy',   price: 250   },
+  { name: 'NS 500ml IV Bag',               service_code: 'PRIV-PHA-04', category: 'pharmacy',   price: 120   },
+  { name: 'Dialysis',                      service_code: 'SHA-ECC-01', category: 'procedure',   price: 12000 },
 ];
 
 const STATUS_TEXT_COLOR = { 
@@ -273,11 +276,19 @@ function PaymentModal({ bill, onClose, onPay }) {
 }
 
 function NewBillModal({ onClose, onSave }) {
+  const { user } = useAuth();
   const [patSearch, setPatSearch]   = useState('');
   const [patResults, setPatResults] = useState([]);
   const [selPat, setSelPat]         = useState(null);
   const [selectedItems, setItems]   = useState([]);
   const [saving, setSaving]         = useState(false);
+  const [isEmergency, setIsEmergency] = useState(false);
+
+  // SHA state
+  const isShaPatient = selPat?.payment_mode === 'SHA' || selPat?.payment_mode === 'PHC';
+  const [shaResult, setShaResult]   = useState(null);
+  const [shaLoading, setShaLoading] = useState(false);
+  const [preAuthCode, setPreAuthCode] = useState('');
 
   useEffect(() => {
     if (!patSearch || patSearch.length < 2) { setPatResults([]); return; }
@@ -288,23 +299,77 @@ function NewBillModal({ onClose, onSave }) {
     return () => clearTimeout(t);
   }, [patSearch]);
 
+  // Recalculate SHA split whenever services or patient change
+  useEffect(() => {
+    if (!isShaPatient || !selPat || selectedItems.length === 0) {
+      setShaResult(null);
+      return;
+    }
+    const debounce = setTimeout(async () => {
+      setShaLoading(true);
+      try {
+        const services = selectedItems.map(i => ({
+          service_code: i.service_code || `PRIV-${i.cat?.toUpperCase()}-01`,
+          description: i.desc,
+          category: i.cat,
+          hospital_price: i.unitPrice,
+          quantity: i.qty,
+        }));
+        const result = await billingService.calculateShaSplit({
+          patient_id: selPat.id,
+          sha_id: selPat.sha_number,
+          services,
+          is_emergency: isEmergency,
+        });
+        setShaResult(result);
+      } catch (e) {
+        // Non-fatal: fall back to full patient pay
+        setShaResult(null);
+      } finally {
+        setShaLoading(false);
+      }
+    }, 600);
+    return () => clearTimeout(debounce);
+  }, [selectedItems, selPat, isEmergency, isShaPatient]);
+
   const addService = (svc) => {
     setItems(prev => {
       const exists = prev.find(i => i.desc === svc.name);
       if (exists) return prev.map(i => i.desc === svc.name ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { desc: svc.name, cat: svc.category, qty: 1, unitPrice: svc.price }];
+      return [...prev, { desc: svc.name, cat: svc.category, qty: 1, unitPrice: svc.price, service_code: svc.service_code }];
     });
   };
 
-  const total = selectedItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const hospitalTotal = selectedItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const shaTotal      = shaResult?.totals?.sha_total ?? 0;
+  const copayTotal    = shaResult?.totals?.patient_total ?? hospitalTotal;
+  const govtTotal     = shaResult?.totals?.govt_debtor_total ?? 0;
+  const isIndigent    = shaResult?.is_indigent ?? false;
+  const referralStatus = shaResult?.referral_status;
+  const needsPreAuth  = shaResult?.needs_preauth ?? false;
 
   const handleSave = async () => {
-    if (!selPat) { alert('Select a patient.'); return; }
-    if (!selectedItems.length) { alert('Add at least one service.'); return; }
+    if (!selPat) { toast.error('Select a patient.'); return; }
+    if (!selectedItems.length) { toast.error('Add at least one service.'); return; }
+    if (needsPreAuth && !preAuthCode) { toast.error('Please enter the SHA pre-authorization code to proceed.'); return; }
     setSaving(true);
-    try { await onSave(selPat.id, selectedItems); onClose(); }
-    catch (e) { alert('Failed: ' + e.message); }
-    finally { setSaving(false); }
+    try {
+      if (isShaPatient && shaResult) {
+        await billingService.createWithSha({
+          patientId: selPat.id,
+          visitId: null,
+          shaResult,
+          userId: user?.id,
+        });
+      } else {
+        await onSave(selPat.id, selectedItems);
+      }
+      onClose();
+    } catch (e) {
+      toast.error('Failed: ' + e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -395,16 +460,105 @@ function NewBillModal({ onClose, onSave }) {
               <div className="flex justify-between items-center px-4 py-3 bg-primary-50 border-t border-primary-100">
                 <span className="font-black text-primary-800">TOTAL</span>
                 <span className="font-black text-primary-700 font-mono text-lg">
-                  <span className="text-xs mr-1 text-slate-900">KSh.</span> {total.toLocaleString()}
+                  <span className="text-xs mr-1 text-slate-900">KSh.</span> {hospitalTotal.toLocaleString()}
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Emergency toggle */}
+          {isShaPatient && (
+            <label className="flex items-center gap-3 cursor-pointer select-none p-3 rounded-xl border border-red-100 bg-red-50/40">
+              <input type="checkbox" checked={isEmergency} onChange={e => setIsEmergency(e.target.checked)}
+                className="w-4 h-4 accent-red-600" />
+              <span className="text-sm font-bold text-red-700">🚨 Emergency Visit — bypass referral checks, bill ECCIF directly</span>
+            </label>
+          )}
+
+          {/* SHA Real-Time Breakdown */}
+          {isShaPatient && selectedItems.length > 0 && (
+            <div className={`rounded-2xl border-2 p-4 transition-all ${
+              shaLoading ? 'border-slate-200 opacity-60' : 'border-blue-100 bg-gradient-to-br from-blue-50 to-slate-50'
+            }`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Shield sx={{ fontSize: 16 }} className="text-blue-600" />
+                  <span className="font-black text-slate-800 text-sm">SHA Payment Breakdown</span>
+                  {shaLoading && <span className="text-[10px] font-bold text-slate-400 animate-pulse">Calculating...</span>}
+                </div>
+                {/* Referral status badge */}
+                {referralStatus === 'Valid' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    <CheckCircle sx={{ fontSize: 11 }} /> Valid Referral
+                  </span>
+                )}
+                {referralStatus === 'Missing' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-200">
+                    <CancelOutlined sx={{ fontSize: 11 }} /> No Referral (Self-Pay)
+                  </span>
+                )}
+                {referralStatus === 'Emergency_Bypass' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-orange-100 text-orange-700 border border-orange-200">
+                    <Warning sx={{ fontSize: 11 }} /> Emergency — ECCIF
+                  </span>
+                )}
+              </div>
+
+              {/* Three-column totals */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-3 rounded-xl bg-white border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hospital Total</p>
+                  <p className="text-lg font-black text-slate-800 font-mono">
+                    <span className="text-[10px] mr-0.5">KSh.</span>{hospitalTotal.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-blue-100 border border-blue-200">
+                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">SHA Pays</p>
+                  <p className="text-lg font-black text-blue-800 font-mono">
+                    <span className="text-[10px] mr-0.5">KSh.</span>{shaTotal.toLocaleString()}
+                  </p>
+                </div>
+                <div className={`text-center p-3 rounded-xl border ${
+                  isIndigent ? 'bg-emerald-100 border-emerald-200' : 'bg-amber-100 border-amber-200'
+                }`}>
+                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${
+                    isIndigent ? 'text-emerald-500' : 'text-amber-500'
+                  }`}>{isIndigent ? 'Govt Pays' : 'You Pay'}</p>
+                  <p className={`text-lg font-black font-mono ${isIndigent ? 'text-emerald-800' : 'text-amber-800'}`}>
+                    <span className="text-[10px] mr-0.5">KSh.</span>
+                    {isIndigent ? govtTotal.toLocaleString() : copayTotal.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {isIndigent && (
+                <p className="mt-2 text-[10px] text-emerald-700 font-bold text-center bg-emerald-50 rounded-lg px-3 py-1.5 border border-emerald-100">
+                  ⭐ Indigent patient — copay assigned to Government Debtor account
+                </p>
+              )}
+
+              {/* Pre-auth required */}
+              {needsPreAuth && (
+                <div className="mt-3 p-3 rounded-xl bg-amber-50 border-2 border-amber-200">
+                  <p className="text-xs font-black text-amber-700 flex items-center gap-1 mb-2">
+                    <Warning sx={{ fontSize: 14 }} /> Pre-Authorization Required
+                  </p>
+                  <div className="flex gap-2">
+                    <input value={preAuthCode} onChange={e => setPreAuthCode(e.target.value)}
+                      className="input text-xs flex-1" placeholder="Enter SHA auth code to enable submission..." />
+                  </div>
+                  <p className="text-[10px] text-amber-600 mt-1.5">Invoice cannot be finalized until an authorization code is entered.</p>
+                </div>
+              )}
             </div>
           )}
         </div>
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={handleSave} disabled={saving || !selectedItems.length} className="btn-primary">
-            <ReceiptLong sx={{ fontSize: 16 }} /> {saving ? 'Creating…' : 'Create Invoice'}
+          <button onClick={handleSave}
+            disabled={saving || !selectedItems.length || (needsPreAuth && !preAuthCode)}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+            <ReceiptLong sx={{ fontSize: 16 }} /> {saving ? 'Creating…' : isShaPatient && shaResult ? 'Create SHA Invoice' : 'Create Invoice'}
           </button>
         </div>
       </div>

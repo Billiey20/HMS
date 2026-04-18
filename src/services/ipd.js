@@ -3,7 +3,7 @@ import { billingService } from './billing';
 
 export const ipdService = {
   async getBedOccupancy() {
-    const { data, error } = await supabase.from('v_bed_occupancy').select('*');
+    const { data, error } = await supabase.from('v_detailed_beds').select('*');
     if (error) throw error;
     return data;
   },

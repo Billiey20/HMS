@@ -156,14 +156,19 @@ function FundingGateStep({ onSHA, onPrivate }) {
             </div>
           </div>
 
-          <Field label="Visit Type">
-            <select className="input" value={visitType} onChange={e => setVisitType(e.target.value)}>
-              <option>Walk-In</option>
-              <option>Emergency</option>
-              <option>Follow-Up</option>
-              <option>Referred</option>
-              <option>Scheduled</option>
-            </select>
+          <Field label="Visit type">
+            <div className="grid grid-cols-2 gap-3">
+              {['Walk-In', 'Referred'].map(vt => (
+                <label key={vt} className={`cursor-pointer flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all
+                  ${visitType === vt
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                    : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'}`}>
+                  <input type="radio" value={vt} checked={visitType === vt}
+                    onChange={() => setVisitType(vt)} className="hidden" />
+                  {vt === 'Walk-In' ? '🚶' : '🔀'} {vt}
+                </label>
+              ))}
+            </div>
           </Field>
 
           <div className="flex justify-end pt-2">

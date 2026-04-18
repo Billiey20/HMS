@@ -7,17 +7,31 @@ import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Dashboard from './pages/dashboard/Dashboard';
 import PatientCenter from './pages/patients/PatientCenter';
+import EmergencyDashboard from './pages/emergency/EmergencyDashboard';
 import ReceptionDashboard from './pages/reception/ReceptionDashboard';
+import Appointments from './pages/reception/Appointments';
+import FollowUps from './pages/reception/FollowUps';
 import Triage from './pages/opd/Triage';
 import OPDQueue from './pages/opd/Queue';
 import Consultation from './pages/opd/Consultation';
 import WardMap from './pages/ipd/WardMap';
 import Admissions from './pages/ipd/Admissions';
 import NursingRounds from './pages/ipd/NursingRounds';
+import MaternityDashboard from './pages/maternity/MaternityDashboard';
+import PaediatricsDashboard from './pages/paediatrics/PaediatricsDashboard';
+import SurgeryDashboard from './pages/surgery/SurgeryDashboard';
+import ICUDashboard from './pages/icu/ICUDashboard';
+import IsolationDashboard from './pages/isolation/IsolationDashboard';
+import SpecialClinicsHub from './pages/special_clinics/SpecialClinicsHub';
+import PhysioDashboard from './pages/physio/PhysioDashboard';
+import DentalDashboard from './pages/dental/DentalDashboard';
+import EyeDashboard from './pages/eye/EyeDashboard';
+import SocialWorkDashboard from './pages/social_work/SocialWorkDashboard';
 import Pharmacy from './pages/pharmacy/Pharmacy';
 import Inventory from './pages/inventory/Inventory';
 import Laboratory from './pages/lab/Laboratory';
 import Billing from './pages/billing/Billing';
+import ShaClaims from './pages/billing/ShaClaims';
 import HR from './pages/hr/HR';
 import Settings from './pages/settings/Settings';
 import PriceList from './pages/admin/PriceList';
@@ -94,9 +108,12 @@ export default function App() {
           <Route path="reception" element={<RoleGuard section="patients"><ReceptionDashboard /></RoleGuard>} />
           <Route path="patients" element={<RoleGuard section="patients"><PatientCenter /></RoleGuard>} />
           <Route path="patients/register" element={<RoleGuard section="patients"><PatientCenter /></RoleGuard>} />
+          <Route path="appointments" element={<RoleGuard section="appointments"><Appointments /></RoleGuard>} />
+          <Route path="followups" element={<RoleGuard section="followups"><FollowUps /></RoleGuard>} />
 
 
-          {/* OPD */}
+          {/* Outpatient & Emergency */}
+          <Route path="emergency" element={<RoleGuard section="emergency"><EmergencyDashboard /></RoleGuard>} />
           <Route path="opd/triage"       element={<RoleGuard section="triage"><Triage /></RoleGuard>} />
           <Route path="opd/queue"        element={<RoleGuard section="opd"><OPDQueue /></RoleGuard>} />
           <Route path="opd/consultation" element={<RoleGuard section="opd"><Consultation /></RoleGuard>} />
@@ -106,6 +123,20 @@ export default function App() {
           <Route path="ipd/admissions" element={<RoleGuard section="ipd"><Admissions /></RoleGuard>} />
           <Route path="ipd/nursing"    element={<RoleGuard section="ipd"><NursingRounds /></RoleGuard>} />
 
+          {/* Specialized Wards */}
+          <Route path="maternity"    element={<RoleGuard section="maternity"><MaternityDashboard /></RoleGuard>} />
+          <Route path="paediatrics"  element={<RoleGuard section="paediatrics"><PaediatricsDashboard /></RoleGuard>} />
+          <Route path="surgery"      element={<RoleGuard section="surgery"><SurgeryDashboard /></RoleGuard>} />
+          <Route path="icu"          element={<RoleGuard section="icu"><ICUDashboard /></RoleGuard>} />
+          <Route path="isolation"    element={<RoleGuard section="isolation"><IsolationDashboard /></RoleGuard>} />
+
+          {/* Phase 2: Vertical Clinics & Allied Health */}
+          <Route path="special-clinics" element={<RoleGuard section="special_clinics"><SpecialClinicsHub /></RoleGuard>} />
+          <Route path="physio"          element={<RoleGuard section="physio"><PhysioDashboard /></RoleGuard>} />
+          <Route path="dental"          element={<RoleGuard section="dental"><DentalDashboard /></RoleGuard>} />
+          <Route path="eye"             element={<RoleGuard section="eye"><EyeDashboard /></RoleGuard>} />
+          <Route path="social-work"     element={<RoleGuard section="social_work"><SocialWorkDashboard /></RoleGuard>} />
+
           {/* Clinical Support */}
           <Route path="lab"      element={<RoleGuard section="lab"><Laboratory /></RoleGuard>} />
           <Route path="pharmacy" element={<RoleGuard section="pharmacy"><Pharmacy /></RoleGuard>} />
@@ -113,7 +144,8 @@ export default function App() {
           {/* Management */}
           <Route path="inventory"         element={<RoleGuard section="inventory"><Inventory /></RoleGuard>} />
           <Route path="inventory/receive" element={<RoleGuard section="inventory"><Inventory /></RoleGuard>} />
-          <Route path="billing"           element={<RoleGuard section="billing"><Billing /></RoleGuard>} />
+          <Route path="billing"                element={<RoleGuard section="billing"><Billing /></RoleGuard>} />
+          <Route path="billing/sha-claims"     element={<RoleGuard section="billing"><ShaClaims /></RoleGuard>} />
           <Route path="hr"                element={<RoleGuard section="hr"><HR /></RoleGuard>} />
           <Route path="settings"          element={<RoleGuard section="settings"><Settings /></RoleGuard>} />
 

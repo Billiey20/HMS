@@ -11,8 +11,11 @@ import {
   Settings, Logout, Menu, Close, 
   NotificationsNone, AccountCircle, AdminPanelSettings, 
   PriceCheck, MonitorHeart, Refresh,
-  Fullscreen, FullscreenExit
+  Fullscreen, FullscreenExit, EventNote, EventRepeat,
+  PregnantWoman, ChildCare, ContentCut, Shield,
+  DomainAdd, FitnessCenter, RemoveRedEye, CleanHands, SupportAgent
 } from '@mui/icons-material';
+import ClockInOut from './ClockInOut';
 import NotificationBell from './NotificationBell';
 import { notify } from '../utils/toast';
 
@@ -34,12 +37,15 @@ const NAV = [
   {
     group: 'RECEPTION',
     items: [
-      { to: '/patients',  label: 'Patient Center', icon: PersonAdd,    section: 'patients' },
+      { to: '/patients',     label: 'Patient center',  icon: PersonAdd,     section: 'patients'     },
+      { to: '/appointments', label: 'Appointments',    icon: EventNote,     section: 'appointments' },
+      { to: '/followups',    label: 'Follow-ups',      icon: EventRepeat,   section: 'followups'    },
     ],
   },
   {
-    group: 'OPD',
+    group: 'OUTPATIENT & EMERGENCY',
     items: [
+      { to: '/emergency', label: 'Accident & Emergency', icon: LocalHospital, section: 'emergency' },
       { to: '/opd/triage',       label: 'Triage Queue',    icon: MonitorHeart,    section: 'triage' },
       { to: '/opd/queue',        label: 'Doctor Queue',    icon: Assignment,      section: 'opd' },
       { to: '/opd/consultation', label: 'Consultation',    icon: Assignment,      section: 'opd' },
@@ -54,6 +60,31 @@ const NAV = [
     ],
   },
   {
+    group: 'SPECIALIZED WARDS',
+    items: [
+      { to: '/maternity',    label: 'Maternity & Neonatal', icon: PregnantWoman, section: 'maternity' },
+      { to: '/paediatrics',  label: 'Paediatric Ward',      icon: ChildCare,     section: 'paediatrics' },
+      { to: '/surgery',      label: 'Surgical & Theatre',   icon: ContentCut,    section: 'surgery' },
+      { to: '/icu',          label: 'HDU / ICU',            icon: MonitorHeart,  section: 'icu' },
+      { to: '/isolation',    label: 'Isolation Ward',       icon: Shield,        section: 'isolation' },
+    ],
+  },
+  {
+    group: 'VERTICAL CLINICS',
+    items: [
+      { to: '/special-clinics', label: 'Special Clinics Hub', icon: DomainAdd, section: 'special_clinics' },
+    ],
+  },
+  {
+    group: 'THERAPY & ALLIED',
+    items: [
+      { to: '/physio',      label: 'Physiotherapy', icon: FitnessCenter, section: 'physio' },
+      { to: '/dental',      label: 'Dental Clinic', icon: CleanHands,    section: 'dental' },
+      { to: '/eye',         label: 'Eye Clinic',    icon: RemoveRedEye,  section: 'eye' },
+      { to: '/social-work', label: 'Social Work',   icon: SupportAgent,  section: 'social_work' },
+    ],
+  },
+  {
     group: 'CLINICAL SUPPORT',
     items: [
       { to: '/lab',      label: 'Laboratory', icon: Science,        section: 'lab'      },
@@ -63,9 +94,10 @@ const NAV = [
   {
     group: 'MANAGEMENT',
     items: [
-      { to: '/inventory', label: 'Inventory', icon: Inventory,    section: 'inventory' },
-      { to: '/billing',   label: 'Billing',   icon: ReceiptLong,  section: 'billing'   },
-      { to: '/hr',        label: 'Staff / HR', icon: Group,       section: 'hr'        },
+      { to: '/inventory', label: 'Inventory',    icon: Inventory,    section: 'inventory' },
+      { to: '/billing',   label: 'Billing',       icon: ReceiptLong,  section: 'billing'   },
+      { to: '/billing/sha-claims', label: 'SHA Claims', icon: Shield, section: 'billing'   },
+      { to: '/hr',        label: 'Staff / HR',    icon: Group,        section: 'hr'        },
     ],
   },
   {
@@ -250,6 +282,7 @@ export default function Layout() {
             </p>
           </div>
           <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
+          <ClockInOut />
           <NotificationBell />
           {/* Fullscreen Toggle */}
           <button

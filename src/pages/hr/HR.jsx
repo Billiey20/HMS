@@ -3,6 +3,7 @@ import {
   Group, Add, Search, Edit, Badge, Email, Phone, Refresh
 } from '@mui/icons-material';
 import { hrService } from '../../services/api';
+import Timetables from './Timetables';
 
 const DEPARTMENTS = [
   'Outpatient (OPD)', 'Inpatient (IPD)', 'Laboratory', 'Pharmacy',
@@ -203,6 +204,7 @@ export default function HR() {
   const [deptFilter, setDept]   = useState('all');
   const [showAdd, setShowAdd]   = useState(false);
   const [depts, setDepts]       = useState([]);
+  const [activeTab, setActiveTab] = useState('directory');
 
   useEffect(() => {
     hrService.getDepartments().then(setDepts).catch(console.error);
@@ -252,7 +254,22 @@ export default function HR() {
         </div>
       </div>
 
-      {/* Role summary */}
+      <div className="flex gap-4 border-b border-slate-200">
+        <button onClick={() => setActiveTab('directory')}
+          className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors -mb-px
+            ${activeTab === 'directory' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+          Staff Directory
+        </button>
+        <button onClick={() => setActiveTab('timetables')}
+          className={`px-5 py-3 text-sm font-bold border-b-2 transition-colors -mb-px
+            ${activeTab === 'timetables' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+          Master Timetable (Schedules)
+        </button>
+      </div>
+
+      {activeTab === 'directory' ? (
+        <>
+          {/* Role summary */}
       <div className="flex flex-wrap gap-4 border-b border-slate-100 pb-2">
         <button key="all" onClick={() => setRole('all')}
           className={`pb-2 text-[11px] font-black uppercase tracking-wider transition-all
@@ -370,6 +387,10 @@ export default function HR() {
           </table>
         </div>
       </div>
+        </>
+      ) : (
+        <Timetables staffMembers={staff} />
+      )}
 
       {showAdd && <AddStaffModal onClose={() => setShowAdd(false)} onSave={loadStaff} />}
     </div>

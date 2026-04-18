@@ -5,21 +5,29 @@ import React, { createContext, useContext } from 'react';
 export const ROLE_PERMISSIONS = {
   admin: [
     'dashboard', 'admin', 'prices', 'claims',
-    'patients',
+    'patients', 'emergency',
     'opd', 'triage', 'ipd', 'ward_map',
+    'maternity', 'paediatrics', 'surgery', 'icu', 'isolation',
+    'special_clinics', 'physio', 'dental', 'eye', 'social_work',
     'lab', 'pharmacy',
     'inventory', 'billing',
     'hr', 'reports', 'settings',
+    'appointments', 'followups',
   ],
-  reception: ['patients', 'prices', 'inventory'],
-  doctor:    ['patients', 'opd', 'ipd', 'ward_map'],
+  reception: ['patients', 'prices', 'inventory', 'appointments', 'followups'],
+  doctor:    ['patients', 'emergency', 'opd', 'ipd', 'ward_map', 'appointments', 'followups', 'maternity', 'paediatrics', 'surgery', 'icu', 'isolation', 'special_clinics'],
   triage:    ['triage'],
-  nurse:     ['ipd', 'ward_map'],
+  nurse:     ['emergency', 'ipd', 'ward_map', 'maternity', 'paediatrics', 'surgery', 'icu', 'isolation', 'special_clinics'],
   lab_staff: ['lab'],
   pharmacy:  ['pharmacy'],
-  billing:   ['billing', 'patients'],
+  billing:   ['billing', 'patients', 'claims'],
   hr:        ['hr'],
   store_keeper: ['inventory'],
+  // Allied Health & Specialists
+  physiotherapist: ['physio', 'patients', 'appointments'],
+  dentist:         ['dental', 'patients', 'appointments'],
+  optometrist:     ['eye', 'patients', 'appointments'],
+  social_worker:   ['social_work', 'patients', 'appointments'],
 };
 
 const PermissionsContext = createContext({ allowed: [], hasAccess: () => false });

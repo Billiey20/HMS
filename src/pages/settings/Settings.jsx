@@ -9,10 +9,12 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { settingsService } from '../../services/settings';
 import { shaService } from '../../services/sha';
+import StructureTab from './StructureTab';
 import hospitalConfig from '../../config/hospital';
 
 const TABS = [
   { key: 'hospital',  label: '🏥 Hospital Profile',      icon: LocalHospital },
+  { key: 'structure', label: '🏢 Structure & Wards',     icon: Business },
   { key: 'payment',   label: '💳 Payment Integration',   icon: HealthAndSafety },
   { key: 'profile',   label: '👤 My Profile',             icon: Person },
   { key: 'password',  label: '🔒 Change Password',        icon: Lock },
@@ -352,6 +354,11 @@ export default function SystemSettings() {
                   </button>
                 </div>
               </>
+            )}
+
+            {/* ── Hospital Structure ── */}
+            {tab === 'structure' && (
+              <StructureTab />
             )}
 
             {/* ── Payment Integration ── */}

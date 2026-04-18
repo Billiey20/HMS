@@ -6,7 +6,7 @@ export const claimsService = {
     // First try with sha_batch_id filter (requires migration to have been run)
     const { data, error } = await supabase
       .from('payments')
-      .select('*, bills(patient_id, patients(first_name, last_name, patient_no, sha_number))')
+      .select('*, bills(patient_id, bill_no, total_amount, patients(first_name, last_name, patient_no, sha_number), bill_items(*))')
       .eq('method', 'Insurance')
       .is('sha_batch_id', null)
       .order('created_at', { ascending: false });
@@ -16,7 +16,7 @@ export const claimsService = {
       if (error.message?.includes('sha_batch_id') || error.code === '42703') {
         const { data: fallback } = await supabase
           .from('payments')
-          .select('*, bills(patient_id, patients(first_name, last_name, patient_no, sha_number))')
+          .select('*, bills(patient_id, bill_no, total_amount, patients(first_name, last_name, patient_no, sha_number), bill_items(*))')
           .eq('method', 'Insurance')
           .order('created_at', { ascending: false });
         return fallback || [];
@@ -30,7 +30,7 @@ export const claimsService = {
   async listBatches() {
     const { data, error } = await supabase
       .from('sha_claims_batches')
-      .select('*, generated_by_user:generated_by(first_name, last_name)')
+      .select('*')
       .order('created_at', { ascending: false });
 
     // If table doesn't exist yet (migration not run), return empty
@@ -40,6 +40,42 @@ export const claimsService = {
       }
       throw error;
     }
+
+    // Manually join users since FK might point to auth.users which isn't accessible via standard join
+    const batches = data || [];
+    if (batches.length > 0) {
+      const userIds = [...new Set(batches.map(b => b.generated_by).filter(Boolean))];
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+          
+        if (users) {
+          const userMap = users.reduce((acc, u) => {
+            acc[u.id] = u;
+            return acc;
+          }, {});
+          
+          batches.forEach(b => {
+            b.generated_by_user = userMap[b.generated_by] || null;
+          });
+        }
+      }
+    }
+    
+    return batches;
+  },
+
+  async getClaimsByBatch(batchId) {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*, bills(patient_id, bill_no, total_amount, patients(first_name, last_name, patient_no, sha_number), bill_items(*))')
+      .eq('method', 'Insurance')
+      .eq('sha_batch_id', batchId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
     return data || [];
   },
 
@@ -70,19 +106,46 @@ export const claimsService = {
 
     if (updateErr) throw updateErr;
 
+    // Log action
+    try {
+      const { auditService } = await import('./auditService.js');
+      await auditService.log({
+        action: 'CREATED',
+        resource_type: 'SHA_BATCH',
+        resource_id: batch.id,
+        user_id: userId,
+        description: `Generated new SHA Claims batch ${batchNo} with ${paymentIds.length} claims totaling KES ${totalAmount}`,
+      });
+    } catch(e) { console.warn('Failed to audit log', e); }
+
     return batch;
   },
 
   // 4. Mark a batch as Reimbursed
-  async markReimbursed(batchId) {
-    const { error } = await supabase
+  async markReimbursed(batchId, userId) {
+    const { data: batch, error } = await supabase
       .from('sha_claims_batches')
       .update({ 
         status: 'reimbursed', 
         reimbursed_at: new Date().toISOString() 
       })
-      .eq('id', batchId);
+      .eq('id', batchId)
+      .select()
+      .single();
 
     if (error) throw error;
+
+    if (batch && userId) {
+      try {
+        const { auditService } = await import('./auditService.js');
+        await auditService.log({
+          action: 'UPDATED',
+          resource_type: 'SHA_BATCH',
+          resource_id: batch.id,
+          user_id: userId,
+          description: `Marked SHA Claims batch ${batch.batch_no} as Reimbursed`,
+        });
+      } catch(e) { console.warn('Failed to audit log', e); }
+    }
   }
 };
