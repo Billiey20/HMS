@@ -7,4 +7,8 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('⚠️  Missing Supabase env vars. Check your .env file.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    storage: window.sessionStorage, // Logs user out when the browser/tab is closed
+  }
+});

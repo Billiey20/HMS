@@ -7,17 +7,17 @@ const AuthContext = createContext(null);
 const CACHE_KEY = 'hms_auth_cache';
 
 function readCache() {
-  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
+  try { return JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null'); }
   catch { return null; }
 }
 
 function writeCache(data) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); }
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(data)); }
   catch {}
 }
 
 function clearCache() {
-  localStorage.removeItem(CACHE_KEY);
+  sessionStorage.removeItem(CACHE_KEY);
 }
 
 export function AuthProvider({ children }) {
