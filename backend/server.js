@@ -8,9 +8,7 @@ const PORT = process.env.PORT || 4000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://your-production-domain.com']
-    : [/http:\/\/localhost:\d+/],
+  origin: true, // Allows all origins for testing. For strict security, change to your Vercel URL later.
   credentials: true,
 }));
 app.use(express.json());
