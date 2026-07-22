@@ -369,7 +369,7 @@ export default function Layout() {
         </button>
 
         {/* Main Page View */}
-        <main className={`flex-1 min-w-0 max-w-full overflow-y-auto overflow-x-hidden ${isLegacyModule ? 'pt-16' : ''}`}>
+        <main className={`flex-1 min-w-0 max-w-full overflow-y-auto overflow-x-hidden ${isLegacyModule ? 'pt-16' : 'pt-20 md:pt-4'}`}>
           <div className="p-0 min-w-0 max-w-full">
              <Outlet />
           </div>
