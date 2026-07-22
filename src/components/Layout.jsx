@@ -272,7 +272,7 @@ export default function Layout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <div className="fixed top-6 right-8 z-[100] flex items-center gap-3 animate-in slide-in-from-top-4 duration-700">
+        <div className="fixed top-6 right-8 z-[100] flex items-center gap-3 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-slate-100 animate-in slide-in-from-top-4 duration-700">
           <div className="hidden sm:flex flex-col items-end gap-0.5 pointer-events-none">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
               {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}
